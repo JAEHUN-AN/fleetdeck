@@ -1,8 +1,9 @@
-import { robotActivity, type EquipmentState, type RobotState } from '../types/telemetry';
+import { robotActivity, type EquipmentState, type MapNode, type RobotState } from '../types/telemetry';
 
 interface FleetMapProps {
   robots: RobotState[];
   equipment: EquipmentState[];
+  nodes: MapNode[];
   width?: number;
   height?: number;
 }
@@ -12,9 +13,10 @@ const ROBOT_RADIUS = 0.55;
 const HEADING_LENGTH = 1.1;
 const EQUIPMENT_W = 6;
 const EQUIPMENT_H = 1.6;
+const NODE_RADIUS = 0.42;
 
-/** 시뮬레이터 좌표(m)를 그대로 viewBox 단위로 쓰는 2D 맵. W6 에서 Three.js 뷰로 확장. */
-export function FleetMap({ robots, equipment, width = 40, height = 25 }: FleetMapProps) {
+/** 시뮬레이터 좌표(m)를 그대로 viewBox 단위로 쓰는 2D 맵. */
+export function FleetMap({ robots, equipment, nodes, width = 40, height = 25 }: FleetMapProps) {
   const verticals = Array.from({ length: Math.floor(width / GRID_STEP) + 1 }, (_, i) => i * GRID_STEP);
   const horizontals = Array.from({ length: Math.floor(height / GRID_STEP) + 1 }, (_, i) => i * GRID_STEP);
 
@@ -24,7 +26,7 @@ export function FleetMap({ robots, equipment, width = 40, height = 25 }: FleetMa
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label="로봇과 설비 위치 맵"
+      aria-label="로봇, 설비, 노드 위치 맵"
     >
       <rect className="map-floor" x={0} y={0} width={width} height={height} />
 
@@ -35,6 +37,14 @@ export function FleetMap({ robots, equipment, width = 40, height = 25 }: FleetMa
         <line key={`h${y}`} className="map-grid" x1={0} y1={y} x2={width} y2={y} />
       ))}
 
+      {/* 창고 노드: 입고(P) / 투입(D) / 경유(W) */}
+      {nodes.map((n) => (
+        <g key={n.nodeId} className={`node node--${n.kind.toLowerCase()}`}>
+          <circle cx={n.x} cy={n.y} r={NODE_RADIUS} />
+          <text x={n.x} y={n.y - NODE_RADIUS - 0.3} textAnchor="middle">{n.nodeId}</text>
+        </g>
+      ))}
+
       {equipment.map((eq) =>
         eq.x === undefined || eq.y === undefined ? null : (
           <g key={eq.equipmentId} className={`equipment equipment--${eq.status.toLowerCase()}`}>
@@ -43,6 +53,19 @@ export function FleetMap({ robots, equipment, width = 40, height = 25 }: FleetMa
           </g>
         ),
       )}
+
+      {/* 주행 중인 로봇의 남은 경로 */}
+      {robots.map((robot) => {
+        const pos = robot.agvPosition;
+        const remaining = robot.nodeStates ?? [];
+        if (!pos || remaining.length === 0) return null;
+        const points = remaining
+          .map((ns) => nodes.find((n) => n.nodeId === ns.nodeId))
+          .filter((n): n is MapNode => n !== undefined);
+        if (points.length === 0) return null;
+        const d = [`M ${pos.x} ${pos.y}`, ...points.map((p) => `L ${p.x} ${p.y}`)].join(' ');
+        return <path key={`route-${robot.serialNumber}`} className="robot-route" d={d} />;
+      })}
 
       {robots.map((robot) => {
         const pos = robot.agvPosition;

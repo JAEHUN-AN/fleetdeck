@@ -3,6 +3,7 @@ package com.fleetdeck.robot;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fleetdeck.config.WebSocketConfig;
+import com.fleetdeck.mission.MissionLifecycle;
 import com.fleetdeck.telemetry.TelemetryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * 로봇 state JSON → 파싱 → 최신값 갱신 → DB 적재 → WebSocket 브로드캐스트.
+ * 로봇 state JSON → 파싱 → 최신값 갱신 → DB 적재 → 미션 상태 전이 → WebSocket 브로드캐스트.
  */
 @Service
 public class RobotTelemetryService {
@@ -21,13 +22,16 @@ public class RobotTelemetryService {
 	private final ObjectMapper objectMapper;
 	private final RobotRegistry registry;
 	private final TelemetryRepository repository;
+	private final MissionLifecycle missionLifecycle;
 	private final SimpMessagingTemplate messaging;
 
 	public RobotTelemetryService(ObjectMapper objectMapper, RobotRegistry registry,
-			TelemetryRepository repository, SimpMessagingTemplate messaging) {
+			TelemetryRepository repository, MissionLifecycle missionLifecycle,
+			SimpMessagingTemplate messaging) {
 		this.objectMapper = objectMapper;
 		this.registry = registry;
 		this.repository = repository;
+		this.missionLifecycle = missionLifecycle;
 		this.messaging = messaging;
 	}
 
@@ -47,6 +51,7 @@ public class RobotTelemetryService {
 
 		registry.upsert(state);
 		persist(state, json);
+		missionLifecycle.onRobotState(state);
 		messaging.convertAndSend(WebSocketConfig.ROBOTS_TOPIC, state);
 	}
 
@@ -55,8 +60,9 @@ public class RobotTelemetryService {
 			repository.insertRobotState(state, json);
 		}
 		catch (DataAccessException e) {
-			// DB 장애가 실시간 관제를 막지 않도록 기록만 남긴다. W7 에서 재시도 큐로 보강.
-			log.error("robot state persist failed for {}: {}", state.serialNumber(), e.getMostSpecificCause().getMessage());
+			// DB 장애가 실시간 관제를 막지 않도록 기록만 남긴다.
+			log.error("robot state persist failed for {}: {}", state.serialNumber(),
+					e.getMostSpecificCause().getMessage());
 		}
 	}
 }

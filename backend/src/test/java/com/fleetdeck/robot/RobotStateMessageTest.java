@@ -3,6 +3,7 @@ package com.fleetdeck.robot;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class RobotStateMessageTest {
@@ -10,12 +11,16 @@ class RobotStateMessageTest {
 	private final ObjectMapper mapper = new ObjectMapper();
 
 	// 시뮬레이터가 실제로 보내는 형태. positionInitialized, velocity 등 모르는 필드 포함.
-	private static final String SAMPLE = """
+	private static final String DRIVING_WITH_ONE_NODE_LEFT = """
 			{
-			  "headerId": 42, "timestamp": "2026-09-02T08:00:00.000Z", "version": "2.0.0",
-			  "manufacturer": "fleetdeck", "serialNumber": "AMR-001", "orderId": "ORD-1",
-			  "orderUpdateId": 0, "lastNodeId": "N07", "lastNodeSequenceId": 0,
-			  "nodeStates": [], "edgeStates": [], "driving": true, "paused": false,
+			  "headerId": 42, "timestamp": "2026-09-04T02:00:00.000Z", "version": "2.0.0",
+			  "manufacturer": "fleetdeck", "serialNumber": "AMR-001", "orderId": "M-7",
+			  "orderUpdateId": 0, "lastNodeId": "P01", "lastNodeSequenceId": 0,
+			  "nodeStates": [
+			    {"nodeId": "D02", "sequenceId": 2, "released": true,
+			     "nodePosition": {"x": 17.0, "y": 21.0, "mapId": "warehouse-a"}}
+			  ],
+			  "edgeStates": [], "driving": true, "paused": false,
 			  "agvPosition": {"x": 1.235, "y": 2.5, "theta": 0.7854, "mapId": "warehouse-a", "positionInitialized": true},
 			  "velocity": {"vx": 1.2, "vy": 0.0, "omega": 0.0},
 			  "loads": [], "actionStates": [],
@@ -27,25 +32,53 @@ class RobotStateMessageTest {
 
 	@Test
 	void parsesSimulatorPayloadIgnoringUnknownFields() throws Exception {
-		RobotStateMessage m = mapper.readValue(SAMPLE, RobotStateMessage.class);
+		RobotStateMessage m = mapper.readValue(DRIVING_WITH_ONE_NODE_LEFT, RobotStateMessage.class);
 
 		assertThat(m.serialNumber()).isEqualTo("AMR-001");
+		assertThat(m.orderId()).isEqualTo("M-7");
 		assertThat(m.agvPosition().x()).isEqualTo(1.235);
 		assertThat(m.agvPosition().mapId()).isEqualTo("warehouse-a");
 		assertThat(m.batteryCharge()).isEqualTo(77.8);
 		assertThat(m.driving()).isTrue();
-		assertThat(m.isIdle()).isFalse();
 		assertThat(m.errorCount()).isZero();
 	}
 
 	@Test
-	void isIdleRequiresNotDrivingNotPausedNotCharging() {
-		RobotStateMessage idle = new RobotStateMessage(1, null, null, "fleetdeck", "AMR-002", null, null,
-				false, false, null, new RobotStateMessage.BatteryState(50.0, false), "AUTOMATIC", null);
-		RobotStateMessage charging = new RobotStateMessage(1, null, null, "fleetdeck", "AMR-003", null, null,
-				false, false, null, new RobotStateMessage.BatteryState(10.0, true), "AUTOMATIC", null);
+	void parsesNodeStatesAndReportsRemainingCount() throws Exception {
+		RobotStateMessage m = mapper.readValue(DRIVING_WITH_ONE_NODE_LEFT, RobotStateMessage.class);
 
-		assertThat(idle.isIdle()).isTrue();
+		assertThat(m.remainingNodes()).isEqualTo(1);
+		assertThat(m.nodeStates().get(0).nodeId()).isEqualTo("D02");
+		assertThat(m.isExecutingOrder()).isTrue();
+		assertThat(m.hasFinishedOrder()).isFalse();
+		assertThat(m.isIdle()).isFalse();
+	}
+
+	@Test
+	void finishedOrderHasNoRemainingNodesAndIsNotDriving() {
+		RobotStateMessage finished = RobotStates.of("AMR-001", "M-7", false, false, 60.0, List.of());
+
+		assertThat(finished.hasFinishedOrder()).isTrue();
+		assertThat(finished.isExecutingOrder()).isFalse();
+		assertThat(finished.isIdle()).isTrue();
+	}
+
+	@Test
+	void robotWithoutOrderIsIdleButHasNotFinishedAnything() {
+		RobotStateMessage parked = RobotStates.of("AMR-002", "", false, false, 60.0, List.of());
+
+		assertThat(parked.hasOrder()).isFalse();
+		assertThat(parked.hasFinishedOrder()).isFalse();
+		assertThat(parked.isIdle()).isTrue();
+	}
+
+	@Test
+	void isIdleRequiresNotDrivingNotChargingAndNoRemainingNodes() {
+		RobotStateMessage charging = RobotStates.of("AMR-003", "", false, true, 10.0, List.of());
+		RobotStateMessage enRoute = RobotStates.of("AMR-004", "M-8", true, false, 80.0,
+				List.of(new RobotStateMessage.NodeState("D01", 2, true)));
+
 		assertThat(charging.isIdle()).isFalse();
+		assertThat(enRoute.isIdle()).isFalse();
 	}
 }

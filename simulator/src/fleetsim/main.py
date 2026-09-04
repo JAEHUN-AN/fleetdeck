@@ -1,9 +1,10 @@
-"""MQTT 연결, 틱 루프, order/instantActions 수신."""
+"""MQTT 연결, 틱 루프, order 수신·적용."""
 
 from __future__ import annotations
 
 import json
 import logging
+import queue
 import random
 import signal
 import time
@@ -16,6 +17,14 @@ from fleetsim import vda5050
 from fleetsim.config import SimConfig
 
 log = logging.getLogger("fleetsim")
+
+PARK_ROW_Y = 2.0
+PARK_SPACING_X = 6.0
+PARK_FIRST_X = 4.0
+
+# MQTT 콜백은 별도 스레드에서 돈다. 상태를 직접 만지지 않고 큐로 넘겨
+# 틱 루프에서만 적용한다 (락 없이 단일 소유권 유지).
+_order_queue: queue.Queue[tuple[str, str, tuple[robot_model.Waypoint, ...]]] = queue.Queue()
 
 
 def build_client(cfg: SimConfig) -> mqtt.Client:
@@ -36,13 +45,24 @@ def _on_connect(client: mqtt.Client, userdata, flags, reason_code, properties) -
 
 
 def _on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
-    # W5: order 를 파싱해 로봇 target 을 바꾸는 로직이 들어갈 자리. 지금은 수신만 기록.
     try:
         body = json.loads(msg.payload)
     except json.JSONDecodeError:
         log.warning("non-JSON payload on %s", msg.topic)
         return
-    log.info("received %s: orderId=%s", msg.topic, body.get("orderId"))
+
+    if not msg.topic.endswith("/order"):
+        log.info("instantActions on %s (미구현)", msg.topic)
+        return
+
+    serial = body.get("serialNumber") or vda5050.serial_from_topic(msg.topic)
+    order_id, waypoints = vda5050.parse_order(body)
+    if not serial or not waypoints:
+        log.warning("order %s 무시: serial=%r waypoints=%d", order_id, serial, len(waypoints))
+        return
+
+    _order_queue.put((serial, order_id, waypoints))
+    log.info("order %s -> %s (%d nodes)", order_id, serial, len(waypoints))
 
 
 def run() -> None:
@@ -52,10 +72,7 @@ def run() -> None:
     client = build_client(cfg)
     client.loop_start()
 
-    robots = [
-        robot_model.spawn(f"AMR-{i + 1:03d}", cfg.map_width, cfg.map_height, rng)
-        for i in range(cfg.robot_count)
-    ]
+    fleet = _spawn_fleet(cfg, rng)
     sorters = [
         sorter_model.spawn(f"SORTER-{i + 1:02d}", x=5.0 + i * 12.0, y=cfg.map_height - 3.0)
         for i in range(cfg.sorter_count)
@@ -65,12 +82,14 @@ def run() -> None:
     signal.signal(signal.SIGINT, lambda *_: running.__setitem__("value", False))
     signal.signal(signal.SIGTERM, lambda *_: running.__setitem__("value", False))
 
-    log.info("simulating %d robots, %d sorters, tick=%.1fs", len(robots), len(sorters), cfg.tick_sec)
+    log.info("simulating %d robots, %d sorters, tick=%.1fs", len(fleet), len(sorters), cfg.tick_sec)
     while running["value"]:
         started = time.monotonic()
-        robots = [robot_model.step(r, cfg.tick_sec, cfg.map_width, cfg.map_height, rng) for r in robots]
+        _apply_pending_orders(fleet)
+        for serial, state in fleet.items():
+            fleet[serial] = robot_model.step(state, cfg.tick_sec)
         sorters = [sorter_model.step(s, rng) for s in sorters]
-        _publish_all(client, cfg, robots, sorters)
+        _publish_all(client, cfg, fleet, sorters)
         elapsed = time.monotonic() - started
         time.sleep(max(0.0, cfg.tick_sec - elapsed))
 
@@ -79,13 +98,36 @@ def run() -> None:
     log.info("stopped")
 
 
+def _spawn_fleet(cfg: SimConfig, rng: random.Random) -> dict[str, robot_model.RobotState]:
+    """대기 열에 나란히 세운다."""
+    fleet: dict[str, robot_model.RobotState] = {}
+    for i in range(cfg.robot_count):
+        serial = f"AMR-{i + 1:03d}"
+        x = min(PARK_FIRST_X + i * PARK_SPACING_X, cfg.map_width - 2.0)
+        fleet[serial] = robot_model.spawn(serial, x=x, y=PARK_ROW_Y, rng=rng)
+    return fleet
+
+
+def _apply_pending_orders(fleet: dict[str, robot_model.RobotState]) -> None:
+    while True:
+        try:
+            serial, order_id, waypoints = _order_queue.get_nowait()
+        except queue.Empty:
+            return
+        current = fleet.get(serial)
+        if current is None:
+            log.warning("order %s: 알 수 없는 로봇 %s", order_id, serial)
+            continue
+        fleet[serial] = robot_model.assign_order(current, order_id, waypoints)
+
+
 def _publish_all(
     client: mqtt.Client,
     cfg: SimConfig,
-    robots: list[robot_model.RobotState],
+    fleet: dict[str, robot_model.RobotState],
     sorters: list[sorter_model.SorterState],
 ) -> None:
-    for r in robots:
+    for r in fleet.values():
         client.publish(
             vda5050.state_topic(cfg.manufacturer, r.serial),
             json.dumps(vda5050.to_state_message(r, cfg.manufacturer, cfg.map_id)),

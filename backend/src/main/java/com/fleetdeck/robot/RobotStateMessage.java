@@ -20,6 +20,7 @@ public record RobotStateMessage(
 		AgvPosition agvPosition,
 		BatteryState batteryState,
 		String operatingMode,
+		List<NodeState> nodeStates,
 		List<ErrorEntry> errors) {
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
@@ -31,11 +32,19 @@ public record RobotStateMessage(
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
+	public record NodeState(String nodeId, long sequenceId, boolean released) {
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	public record ErrorEntry(String errorType, String errorLevel, String errorDescription) {
 	}
 
 	public int errorCount() {
 		return errors == null ? 0 : errors.size();
+	}
+
+	public int remainingNodes() {
+		return nodeStates == null ? 0 : nodeStates.size();
 	}
 
 	public boolean isCharging() {
@@ -46,7 +55,24 @@ public record RobotStateMessage(
 		return batteryState == null ? 0.0 : batteryState.batteryCharge();
 	}
 
+	public boolean hasOrder() {
+		return orderId != null && !orderId.isBlank();
+	}
+
+	/** 주문 수행 중: 남은 노드가 있거나 주행 중. */
+	public boolean isExecutingOrder() {
+		return hasOrder() && (remainingNodes() > 0 || driving);
+	}
+
+	/**
+	 * 주문 완료: orderId 는 있는데 남은 노드가 없고 정지 상태.
+	 * VDA5050 은 nodeStates/actionStates 가 비고 driving=false 일 때 order 완료로 본다.
+	 */
+	public boolean hasFinishedOrder() {
+		return hasOrder() && remainingNodes() == 0 && !driving;
+	}
+
 	public boolean isIdle() {
-		return !driving && !paused && !isCharging();
+		return !driving && !paused && !isCharging() && remainingNodes() == 0;
 	}
 }

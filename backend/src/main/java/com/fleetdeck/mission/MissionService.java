@@ -12,7 +12,8 @@ public class MissionService {
 	private final MissionDispatcher dispatcher;
 	private final SimpMessagingTemplate messaging;
 
-	public MissionService(MissionRepository repository, MissionDispatcher dispatcher, SimpMessagingTemplate messaging) {
+	public MissionService(MissionRepository repository, MissionDispatcher dispatcher,
+			SimpMessagingTemplate messaging) {
 		this.repository = repository;
 		this.dispatcher = dispatcher;
 		this.messaging = messaging;
@@ -20,9 +21,14 @@ public class MissionService {
 
 	public Mission create(MissionRequest request) {
 		Mission created = repository.insert(request);
-		Mission result = dispatcher.tryAssign(created);
-		if (result.status() != created.status()) {
-			repository.updateAssignment(result);
+		return dispatchAndPublish(created);
+	}
+
+	/** 배정 시도 후 상태가 바뀌었으면 저장하고 브로드캐스트한다. */
+	public Mission dispatchAndPublish(Mission mission) {
+		Mission result = dispatcher.tryAssign(mission);
+		if (result.status() != mission.status()) {
+			repository.updateStatus(result);
 		}
 		messaging.convertAndSend(WebSocketConfig.MISSIONS_TOPIC, result);
 		return result;

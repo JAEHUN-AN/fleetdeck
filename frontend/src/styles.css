@@ -45,6 +45,7 @@ body {
 .stat__value { font-size: 20px; font-weight: 600; }
 .stat__label { color: var(--text-dim); font-size: 11px; margin-top: 3px; }
 .stat--alarm .stat__value { color: var(--alarm); }
+.stat--ok .stat__value { color: var(--ok); }
 .conn {
   font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 999px;
   border: 1px solid var(--line);
@@ -60,7 +61,9 @@ body {
   flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px;
   gap: var(--gap); padding: var(--gap); min-height: 0;
 }
-.side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; overflow: auto; }
+.side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; overflow-y: auto; }
+/* 사이드 패널은 내용만큼만 차지하고, 넘치면 .side 가 스크롤한다 (서로 겹치지 않게). */
+.side > .panel { flex: none; }
 .panel {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 12px; display: flex; flex-direction: column; min-height: 0;
@@ -87,6 +90,20 @@ body {
 .robot--idle .robot-heading { stroke: var(--idle); }
 .robot--paused circle { fill: var(--alarm); }
 .robot--paused .robot-heading { stroke: var(--alarm); }
+/* 창고 노드 */
+.node circle { fill: none; stroke-width: 0.1; }
+.node text { font-size: 0.5px; fill: var(--text-dim); font-family: var(--font-mono); opacity: 0.75; }
+.node--pick circle { stroke: oklch(62% 0.06 250); }
+.node--drop circle { stroke: var(--ok); }
+.node--waypoint circle { stroke: var(--line); }
+.node--waypoint text { opacity: 0.4; }
+
+/* 남은 경로 */
+.robot-route {
+  fill: none; stroke: var(--accent); stroke-width: 0.1;
+  stroke-dasharray: 0.5 0.4; opacity: 0.55; stroke-linecap: round;
+}
+
 .equipment rect { stroke-width: 0.08; }
 .equipment text { font-size: 0.6px; fill: var(--bg); font-weight: 700; font-family: var(--font-mono); }
 .equipment--running rect { fill: var(--ok); stroke: var(--ok); }
@@ -111,6 +128,44 @@ body {
 .battery { position: relative; height: 18px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .battery-fill { position: absolute; inset: 0 auto 0 0; background: var(--ok); opacity: 0.55; }
 .battery span { position: relative; padding-left: 6px; font-size: 11px; line-height: 18px; }
+
+/* 미션 */
+.mission-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mission-actions button {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 6px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: border-color 120ms ease, color 120ms ease;
+}
+.mission-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.mission-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mission-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.mission-actions__error { color: var(--alarm); font-size: 11px; }
+
+.mission-list {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: 6px;
+  max-height: 260px; overflow-y: auto;
+}
+.mission {
+  border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius);
+  padding: 6px 9px; background: var(--surface-2);
+}
+.mission--pending { border-left-color: var(--text-dim); }
+.mission--assigned { border-left-color: var(--warn); }
+.mission--running { border-left-color: var(--accent); }
+.mission--done { border-left-color: var(--ok); opacity: 0.62; }
+.mission--failed { border-left-color: var(--alarm); }
+.mission__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mission__route { font-size: 12px; font-weight: 600; }
+.mission__arrow { color: var(--text-dim); }
+.mission__meta {
+  display: flex; gap: 10px; margin-top: 3px; font-size: 10px; color: var(--text-dim);
+}
+.mission__ref { margin-left: auto; opacity: 0.7; }
+.badge--pending { color: var(--text-dim); }
+.badge--assigned { color: var(--warn); }
+.badge--running { color: var(--accent); }
+.badge--done { color: var(--ok); }
+.badge--failed { color: var(--alarm); }
 
 /* 설비 카드 */
 .equipment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

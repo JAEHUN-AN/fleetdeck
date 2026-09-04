@@ -1,4 +1,4 @@
-// backend 의 RobotStateMessage / EquipmentStateMessage / Mission 과 1:1.
+// backend 의 RobotStateMessage / EquipmentStateMessage / Mission / WarehouseMap.Node 와 1:1.
 
 export interface AgvPosition {
   x: number;
@@ -10,6 +10,12 @@ export interface AgvPosition {
 export interface BatteryState {
   batteryCharge: number;
   charging: boolean;
+}
+
+export interface NodeState {
+  nodeId: string;
+  sequenceId: number;
+  released: boolean;
 }
 
 export interface RobotErrorEntry {
@@ -30,6 +36,7 @@ export interface RobotState {
   agvPosition?: AgvPosition;
   batteryState?: BatteryState;
   operatingMode?: string;
+  nodeStates?: NodeState[];
   errors?: RobotErrorEntry[];
 }
 
@@ -61,6 +68,15 @@ export interface Mission {
   updatedAt: string;
 }
 
+export type NodeKind = 'PICK' | 'DROP' | 'WAYPOINT';
+
+export interface MapNode {
+  nodeId: string;
+  x: number;
+  y: number;
+  kind: NodeKind;
+}
+
 export type RobotActivity = 'charging' | 'driving' | 'paused' | 'idle';
 
 export function robotActivity(robot: RobotState): RobotActivity {
@@ -68,4 +84,9 @@ export function robotActivity(robot: RobotState): RobotActivity {
   if (robot.paused) return 'paused';
   if (robot.driving) return 'driving';
   return 'idle';
+}
+
+/** 로봇이 지금 수행 중인 주문의 남은 노드 수. */
+export function remainingNodes(robot: RobotState): number {
+  return robot.nodeStates?.length ?? 0;
 }

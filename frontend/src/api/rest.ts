@@ -1,4 +1,4 @@
-import type { EquipmentState, Mission, MissionType, RobotState } from '../types/telemetry';
+import type { EquipmentState, MapNode, Mission, MissionType, RobotState } from '../types/telemetry';
 
 const API_BASE = '/api';
 
@@ -20,6 +20,10 @@ export function fetchEquipment(): Promise<EquipmentState[]> {
 
 export function fetchMissions(): Promise<Mission[]> {
   return getJson<Mission[]>('/missions');
+}
+
+export function fetchMapNodes(): Promise<MapNode[]> {
+  return getJson<MapNode[]>('/map/nodes');
 }
 
 export interface CreateMissionInput {
