@@ -1,0 +1,35 @@
+# env / secrets
+.env
+*.local
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+
+# java / gradle
+backend/build/
+backend/.gradle/
+backend/out/
+*.class
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# ide
+.idea/
+.vscode/
+*.iml
+
+# os
+.DS_Store
+Thumbs.db
+
+# data
+infra/mosquitto/data/
+infra/mosquitto/log/

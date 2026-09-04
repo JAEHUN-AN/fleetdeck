@@ -1,0 +1,32 @@
+[project]
+name = "fleetsim"
+version = "0.1.0"
+description = "VDA5050 AMR + sorter equipment telemetry simulator for fleetdeck"
+requires-python = ">=3.12"
+dependencies = [
+    "paho-mqtt>=2.1.0",
+]
+
+[project.scripts]
+fleetsim = "fleetsim.main:run"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fleetsim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

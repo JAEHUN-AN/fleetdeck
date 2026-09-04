@@ -1,0 +1,74 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: fleetdeck-mosquitto
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # MQTT over WebSocket (브라우저에서 직접 구독할 때)
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: fleetdeck-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fleetdeck}
+      POSTGRES_USER: ${POSTGRES_USER:-fleetdeck}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetdeck} -d ${POSTGRES_DB:-fleetdeck}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  simulator:
+    build: ./simulator
+    container_name: fleetdeck-simulator
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      SIM_MANUFACTURER: ${SIM_MANUFACTURER:-fleetdeck}
+      SIM_ROBOT_COUNT: ${SIM_ROBOT_COUNT:-5}
+      SIM_SORTER_COUNT: ${SIM_SORTER_COUNT:-2}
+      SIM_TICK_SEC: ${SIM_TICK_SEC:-1.0}
+      SIM_MAP_WIDTH: ${SIM_MAP_WIDTH:-40}
+      SIM_MAP_HEIGHT: ${SIM_MAP_HEIGHT:-25}
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: fleetdeck-backend
+    environment:
+      FLEETDECK_MQTT_URL: tcp://mosquitto:1883
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-fleetdeck}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fleetdeck}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    ports:
+      # 호스트 8080 은 다른 프로젝트가 쓰는 경우가 있어 8081 로 노출한다.
+      - "${BACKEND_PORT:-8081}:8080"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  db-data:

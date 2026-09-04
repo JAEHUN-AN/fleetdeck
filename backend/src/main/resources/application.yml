@@ -1,0 +1,29 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fleetdeck-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fleetdeck}
+    username: ${SPRING_DATASOURCE_USERNAME:fleetdeck}
+    password: ${SPRING_DATASOURCE_PASSWORD:change-me}
+  jackson:
+    default-property-inclusion: non_null
+
+fleetdeck:
+  mqtt:
+    url: ${FLEETDECK_MQTT_URL:tcp://localhost:1883}
+    client-id: ${FLEETDECK_MQTT_CLIENT_ID:fleetdeck-rcs}
+    manufacturer: ${SIM_MANUFACTURER:fleetdeck}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.fleetdeck: INFO
+    org.springframework.integration.mqtt: WARN
