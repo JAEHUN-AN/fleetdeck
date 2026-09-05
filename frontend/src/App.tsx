@@ -13,9 +13,26 @@ const Warehouse3D = lazy(() =>
 
 type MapView = '2d' | '3d';
 
+/** 링크로 뷰를 공유할 수 있게 URL 에 담는다. ?view=3d */
+function viewFromUrl(): MapView {
+  return new URLSearchParams(window.location.search).get('view') === '3d' ? '3d' : '2d';
+}
+
+function pushViewToUrl(view: MapView) {
+  const url = new URL(window.location.href);
+  if (view === '2d') url.searchParams.delete('view');
+  else url.searchParams.set('view', view);
+  window.history.replaceState(null, '', url);
+}
+
 export function App() {
   const { robots, equipment, missions, nodes, connected, lastError } = useFleet();
-  const [view, setView] = useState<MapView>('2d');
+  const [view, setView] = useState<MapView>(viewFromUrl);
+
+  const selectView = (next: MapView) => {
+    setView(next);
+    pushViewToUrl(next);
+  };
 
   const alarms = equipment.filter((e) => e.status === 'ALARM').length;
   const offline = robots.filter((r) => !r.online).length;
@@ -55,7 +72,7 @@ export function App() {
                   type="button"
                   className={view === v ? 'is-active' : undefined}
                   aria-pressed={view === v}
-                  onClick={() => setView(v)}
+                  onClick={() => selectView(v)}
                 >
                   {v.toUpperCase()}
                 </button>
