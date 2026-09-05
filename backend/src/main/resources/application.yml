@@ -20,6 +20,9 @@ fleetdeck:
     # PENDING 미션 재시도 주기와 한 번에 처리할 건수
     interval: ${FLEETDECK_DISPATCH_INTERVAL:3s}
     batch-size: ${FLEETDECK_DISPATCH_BATCH:10}
+    # 이 시간 동안 진전 없는 ASSIGNED/RUNNING 은 PENDING 으로 회수한다 (로봇 예약 TTL 겸용)
+    stale-after: ${FLEETDECK_STALE_AFTER:60s}
+    reclaim-interval: ${FLEETDECK_RECLAIM_INTERVAL:10s}
   wms:
     # 모의 WMS 주문 생성기. 실제 상위 시스템을 붙이면 끈다.
     enabled: ${FLEETDECK_WMS_ENABLED:true}

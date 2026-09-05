@@ -46,6 +46,11 @@ public record Mission(
 		return withStatus(MissionStatus.FAILED, assignedRobot);
 	}
 
+	/** 배정을 회수해 다시 배정 대기로 되돌린다. 로봇이 order 를 못 받았거나 응답이 끊긴 경우. */
+	public Mission reclaimed() {
+		return withStatus(MissionStatus.PENDING, null);
+	}
+
 	private Mission withStatus(MissionStatus next, String robotSerial) {
 		return new Mission(id, type, fromNode, toNode, next, robotSerial, sourceRef,
 				createdAt, OffsetDateTime.now());

@@ -1,5 +1,6 @@
 package com.fleetdeck.config;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "fleetdeck")
@@ -8,8 +9,14 @@ public record FleetdeckProperties(Mqtt mqtt, Dispatch dispatch, Wms wms) {
 	public record Mqtt(String url, String clientId, String manufacturer) {
 	}
 
-	/** PENDING 미션 재시도 설정. 유휴 로봇이 없어 배정에 실패한 미션을 주기적으로 다시 시도한다. */
-	public record Dispatch(int batchSize) {
+	/**
+	 * 배정 관련 설정.
+	 *
+	 * @param batchSize  한 주기에 처리할 PENDING 건수
+	 * @param staleAfter 이 시간 동안 진전이 없는 ASSIGNED/RUNNING 미션을 PENDING 으로 회수한다.
+	 *                   로봇 예약 TTL 로도 같은 값을 쓴다.
+	 */
+	public record Dispatch(int batchSize, Duration staleAfter) {
 	}
 
 	/**

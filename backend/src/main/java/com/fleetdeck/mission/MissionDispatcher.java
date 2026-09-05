@@ -4,7 +4,9 @@ import com.fleetdeck.config.FleetdeckProperties;
 import com.fleetdeck.map.WarehouseMap;
 import com.fleetdeck.mqtt.MqttPublisher;
 import com.fleetdeck.robot.RobotRegistry;
+import com.fleetdeck.robot.RobotReservations;
 import com.fleetdeck.robot.RobotStateMessage;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -28,13 +31,15 @@ public class MissionDispatcher {
 	private static final String VDA_VERSION = "2.0.0";
 
 	private final RobotRegistry robots;
+	private final RobotReservations reservations;
 	private final MqttPublisher publisher;
 	private final WarehouseMap warehouseMap;
 	private final FleetdeckProperties props;
 
-	public MissionDispatcher(RobotRegistry robots, MqttPublisher publisher,
+	public MissionDispatcher(RobotRegistry robots, RobotReservations reservations, MqttPublisher publisher,
 			WarehouseMap warehouseMap, FleetdeckProperties props) {
 		this.robots = robots;
+		this.reservations = reservations;
 		this.publisher = publisher;
 		this.warehouseMap = warehouseMap;
 		this.props = props;
@@ -48,7 +53,8 @@ public class MissionDispatcher {
 			return mission.failed();
 		}
 
-		Optional<RobotStateMessage> picked = pickIdleRobot(robots.all());
+		Instant now = Instant.now();
+		Optional<RobotStateMessage> picked = pickIdleRobot(robots.all(), reservations.reservedSerials(now));
 		if (picked.isEmpty()) {
 			log.debug("no idle robot for mission {}", mission.id());
 			return mission;
@@ -56,15 +62,30 @@ public class MissionDispatcher {
 
 		RobotStateMessage robot = picked.get();
 		Mission assigned = mission.assignedTo(robot.serialNumber());
-		publisher.publish(orderTopic(robot), toOrder(assigned, robot, route));
+
+		// 발행 전에 예약한다. 같은 패스의 다음 미션이 이 로봇을 다시 고르지 못하게 하는 것이 핵심.
+		reservations.reserve(robot.serialNumber(), assigned.orderId(), now);
+		try {
+			publisher.publish(orderTopic(robot), toOrder(assigned, robot, route));
+		}
+		catch (RuntimeException e) {
+			reservations.release(robot.serialNumber());
+			log.error("mission {} order 발행 실패: {}", assigned.id(), e.getMessage());
+			return mission;
+		}
+
 		log.info("mission {} assigned to {} ({} nodes)", assigned.id(), robot.serialNumber(), route.size());
 		return assigned;
 	}
 
-	/** 유휴 로봇 중 배터리가 가장 많은 것. 순수 함수라 단위 테스트 대상. */
-	static Optional<RobotStateMessage> pickIdleRobot(Collection<RobotStateMessage> candidates) {
+	/**
+	 * 유휴이면서 예약되지 않은 로봇 중 배터리가 가장 많은 것. 순수 함수라 단위 테스트 대상.
+	 */
+	static Optional<RobotStateMessage> pickIdleRobot(Collection<RobotStateMessage> candidates,
+			Set<String> reservedSerials) {
 		return candidates.stream()
 				.filter(RobotStateMessage::isIdle)
+				.filter(r -> !reservedSerials.contains(r.serialNumber()))
 				.max(Comparator.comparingDouble(RobotStateMessage::batteryCharge));
 	}
 

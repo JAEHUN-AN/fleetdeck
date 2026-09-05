@@ -36,6 +36,11 @@ public class MissionRepository {
 	private static final String COUNT_OPEN =
 			"SELECT count(*) FROM mission WHERE status IN ('PENDING', 'ASSIGNED', 'RUNNING')";
 
+	// updated_at 은 상태가 바뀔 때만 갱신되므로 정체 판단 기준이 된다.
+	private static final String SELECT_STALE = "SELECT " + COLUMNS
+			+ " FROM mission WHERE status IN ('ASSIGNED', 'RUNNING') AND updated_at < ?"
+			+ " ORDER BY updated_at LIMIT ?";
+
 	private static final String UPDATE_STATUS = """
 			UPDATE mission SET status = ?, assigned_robot = ?, updated_at = now() WHERE id = ?
 			""";
@@ -63,6 +68,11 @@ public class MissionRepository {
 
 	public List<Mission> findPending(int limit) {
 		return jdbc.query(SELECT_PENDING, ROW_MAPPER, limit);
+	}
+
+	/** 진전 없이 오래 머문 ASSIGNED/RUNNING 미션. 회수 대상 후보. */
+	public List<Mission> findStale(OffsetDateTime cutoff, int limit) {
+		return jdbc.query(SELECT_STALE, ROW_MAPPER, cutoff, limit);
 	}
 
 	public int countOpen() {

@@ -12,7 +12,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * 로봇 state JSON → 파싱 → 최신값 갱신 → DB 적재 → 미션 상태 전이 → WebSocket 브로드캐스트.
+ * 로봇 state JSON → 파싱 → 최신값 갱신 → 예약 해제 → DB 적재 → 미션 상태 전이 → WebSocket 브로드캐스트.
  */
 @Service
 public class RobotTelemetryService {
@@ -21,15 +21,17 @@ public class RobotTelemetryService {
 
 	private final ObjectMapper objectMapper;
 	private final RobotRegistry registry;
+	private final RobotReservations reservations;
 	private final TelemetryRepository repository;
 	private final MissionLifecycle missionLifecycle;
 	private final SimpMessagingTemplate messaging;
 
 	public RobotTelemetryService(ObjectMapper objectMapper, RobotRegistry registry,
-			TelemetryRepository repository, MissionLifecycle missionLifecycle,
-			SimpMessagingTemplate messaging) {
+			RobotReservations reservations, TelemetryRepository repository,
+			MissionLifecycle missionLifecycle, SimpMessagingTemplate messaging) {
 		this.objectMapper = objectMapper;
 		this.registry = registry;
+		this.reservations = reservations;
 		this.repository = repository;
 		this.missionLifecycle = missionLifecycle;
 		this.messaging = messaging;
@@ -50,6 +52,8 @@ public class RobotTelemetryService {
 		}
 
 		registry.upsert(state);
+		// 로봇이 예약된 order 를 보고했으면 수령 확인이므로 예약을 푼다.
+		reservations.onRobotState(state);
 		persist(state, json);
 		missionLifecycle.onRobotState(state);
 		messaging.convertAndSend(WebSocketConfig.ROBOTS_TOPIC, state);
