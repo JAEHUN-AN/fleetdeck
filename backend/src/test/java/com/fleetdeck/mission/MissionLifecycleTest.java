@@ -18,7 +18,7 @@ class MissionLifecycleTest {
 
 	private static Mission mission(MissionStatus status, String robot) {
 		OffsetDateTime now = OffsetDateTime.now();
-		return new Mission(7L, MissionType.TRANSPORT, "P01", "D02", status, robot, "WMS-1", now, now);
+		return new Mission(7L, MissionType.TRANSPORT, "P01", "D02", status, robot, "WMS-1", 0, now, now);
 	}
 
 	@Test

@@ -23,6 +23,8 @@ fleetdeck:
     # 이 시간 동안 진전 없는 ASSIGNED/RUNNING 은 PENDING 으로 회수한다 (로봇 예약 TTL 겸용)
     stale-after: ${FLEETDECK_STALE_AFTER:60s}
     reclaim-interval: ${FLEETDECK_RECLAIM_INTERVAL:10s}
+    # 회수 후 재배정 허용 횟수. 넘기면 FAILED 로 포기해 무한 재시도를 막는다.
+    max-retries: ${FLEETDECK_MAX_RETRIES:3}
   wms:
     # 모의 WMS 주문 생성기. 실제 상위 시스템을 붙이면 끈다.
     enabled: ${FLEETDECK_WMS_ENABLED:true}

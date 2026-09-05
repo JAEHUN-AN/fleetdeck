@@ -14,8 +14,8 @@ public class MissionRepository {
 
 	private static final int LIST_LIMIT = 100;
 
-	private static final String COLUMNS =
-			"id, mission_type, from_node, to_node, status, assigned_robot, source_ref, created_at, updated_at";
+	private static final String COLUMNS = "id, mission_type, from_node, to_node, status,"
+			+ " assigned_robot, source_ref, retry_count, created_at, updated_at";
 
 	// 텍스트 블록은 각 줄 끝 공백을 지우므로 RETURNING 뒤 구분자를 직접 넣는다.
 	private static final String INSERT = """
@@ -42,7 +42,8 @@ public class MissionRepository {
 			+ " ORDER BY updated_at LIMIT ?";
 
 	private static final String UPDATE_STATUS = """
-			UPDATE mission SET status = ?, assigned_robot = ?, updated_at = now() WHERE id = ?
+			UPDATE mission SET status = ?, assigned_robot = ?, retry_count = ?, updated_at = now()
+			WHERE id = ?
 			""";
 
 	private static final RowMapper<Mission> ROW_MAPPER = MissionRepository::mapRow;
@@ -81,7 +82,8 @@ public class MissionRepository {
 	}
 
 	public void updateStatus(Mission mission) {
-		jdbc.update(UPDATE_STATUS, mission.status().name(), mission.assignedRobot(), mission.id());
+		jdbc.update(UPDATE_STATUS,
+				mission.status().name(), mission.assignedRobot(), mission.retryCount(), mission.id());
 	}
 
 	private static Mission mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -93,6 +95,7 @@ public class MissionRepository {
 				Mission.MissionStatus.valueOf(rs.getString("status")),
 				rs.getString("assigned_robot"),
 				rs.getString("source_ref"),
+				rs.getInt("retry_count"),
 				rs.getObject("created_at", OffsetDateTime.class),
 				rs.getObject("updated_at", OffsetDateTime.class));
 	}

@@ -107,7 +107,8 @@ public class MissionScheduler {
 	}
 
 	private void reclaim(Mission mission) {
-		Mission reclaimed = mission.reclaimed();
+		int maxRetries = props.dispatch().maxRetries();
+		Mission reclaimed = mission.reclaimed(maxRetries);
 		try {
 			repository.updateStatus(reclaimed);
 		}
@@ -116,8 +117,16 @@ public class MissionScheduler {
 			return;
 		}
 		reservations.release(mission.assignedRobot());
-		log.warn("mission {} {} -> PENDING 회수 ({} 가 {}초 넘게 진전 없음)",
-				mission.id(), mission.status(), mission.assignedRobot(), props.dispatch().staleAfter().toSeconds());
+
+		if (reclaimed.status() == Mission.MissionStatus.FAILED) {
+			log.error("mission {} 포기: 재시도 {}회로 상한({}) 초과. 마지막 배정 {}",
+					mission.id(), reclaimed.retryCount(), maxRetries, mission.assignedRobot());
+		}
+		else {
+			log.warn("mission {} {} -> PENDING 회수 {}/{} ({} 가 {}초 넘게 진전 없음)",
+					mission.id(), mission.status(), reclaimed.retryCount(), maxRetries,
+					mission.assignedRobot(), props.dispatch().staleAfter().toSeconds());
+		}
 		messaging.convertAndSend(WebSocketConfig.MISSIONS_TOPIC, reclaimed);
 	}
 

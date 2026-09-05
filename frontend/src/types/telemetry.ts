@@ -64,6 +64,8 @@ export interface Mission {
   status: MissionStatus;
   assignedRobot?: string;
   sourceRef?: string;
+  /** 회수되어 재배정된 횟수. 상한을 넘기면 백엔드가 FAILED 로 포기한다. */
+  retryCount: number;
   createdAt: string;
   updatedAt: string;
 }

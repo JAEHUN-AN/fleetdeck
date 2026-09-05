@@ -63,6 +63,11 @@ export function MissionPanel({ missions, nodes }: MissionPanelProps) {
               <div className="mission__meta mono">
                 <span>#{m.id}</span>
                 <span>{m.assignedRobot ?? '미배정'}</span>
+                {m.retryCount > 0 && (
+                  <span className="mission__retry" title={`재시도 ${m.retryCount}회`}>
+                    ↻{m.retryCount}
+                  </span>
+                )}
                 <span className="mission__ref">{m.sourceRef ?? ''}</span>
               </div>
             </li>

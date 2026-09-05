@@ -160,6 +160,7 @@ body {
 .mission__meta {
   display: flex; gap: 10px; margin-top: 3px; font-size: 10px; color: var(--text-dim);
 }
+.mission__retry { color: var(--warn); font-weight: 600; }
 .mission__ref { margin-left: auto; opacity: 0.7; }
 .badge--pending { color: var(--text-dim); }
 .badge--assigned { color: var(--warn); }

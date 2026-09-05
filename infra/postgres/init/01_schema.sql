@@ -41,7 +41,12 @@ CREATE TABLE IF NOT EXISTS mission (
     status          TEXT        NOT NULL DEFAULT 'PENDING',  -- PENDING / ASSIGNED / RUNNING / DONE / FAILED
     assigned_robot  TEXT,
     source_ref      TEXT,                   -- WMS 주문번호 등 상위 시스템 참조
+    retry_count     INTEGER     NOT NULL DEFAULT 0,  -- 회수되어 재배정된 횟수
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_mission_status ON mission (status, created_at);
+
+-- 마이그레이션 도구가 없어 이 파일을 기존 DB 에 다시 돌릴 수 있도록 멱등하게 둔다.
+-- (init 디렉터리는 볼륨이 비어 있을 때만 자동 실행되므로 기존 DB 에는 수동 적용이 필요하다)
+ALTER TABLE mission ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0;

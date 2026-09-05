@@ -13,10 +13,11 @@ public record FleetdeckProperties(Mqtt mqtt, Dispatch dispatch, Wms wms) {
 	 * 배정 관련 설정.
 	 *
 	 * @param batchSize  한 주기에 처리할 PENDING 건수
-	 * @param staleAfter 이 시간 동안 진전이 없는 ASSIGNED/RUNNING 미션을 PENDING 으로 회수한다.
+	 * @param staleAfter 이 시간 동안 진전이 없는 ASSIGNED/RUNNING 미션을 회수한다.
 	 *                   로봇 예약 TTL 로도 같은 값을 쓴다.
+	 * @param maxRetries 회수 후 재배정을 허용하는 최대 횟수. 넘기면 FAILED 로 포기한다.
 	 */
-	public record Dispatch(int batchSize, Duration staleAfter) {
+	public record Dispatch(int batchSize, Duration staleAfter, int maxRetries) {
 	}
 
 	/**
