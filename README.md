@@ -151,11 +151,28 @@ cd backend && ./gradlew test
 ```
 
 ```bash
+cd backend && ./gradlew integrationTest
+```
+
+```bash
 cd simulator && uv run pytest
 ```
 
-백엔드 33개, 시뮬레이터 17개. 상태 전이·로봇 선정·재시도 판정은 순수 함수로 분리해
-단위 테스트로 덮었습니다. MQTT → DB → WebSocket 경로는 아직 수동 확인에 의존합니다.
+**단위 테스트** — 백엔드 43개, 시뮬레이터 20개. Docker 없이 돕니다.
+상태 전이·로봇 선정·재시도 판정은 순수 함수로 분리해 덮었습니다.
+
+**통합 테스트** — 9개. Testcontainers 로 실제 Mosquitto·TimescaleDB 를 띄워
+MQTT → 적재 → 미션 전이 → order 발행까지 흘려봅니다 (`@Tag("integration")` 으로
+분리되어 `test` 태스크에서는 제외됩니다). 빈 DB 에 Flyway 가 V1 을 적용하므로
+마이그레이션도 함께 검증됩니다.
+
+지금까지 잡은 결함(중복 배정, 유령 로봇, order 의 `nodePosition` 누락)은 모두
+단위 테스트를 통과하고 통합 구간에서만 드러났습니다. 그래서 다음을 직접 확인합니다.
+
+- 디스패처가 실제로 order 를 발행하고, 그 order 에 주행 가능한 `nodePosition` 이 들어 있는가
+- 로봇 보고에 따라 미션이 ASSIGNED → RUNNING → DONE 으로 전이하는가
+- 한 로봇이 열린 미션을 둘 이상 갖지 않는가
+- 깨진 JSON 이 파이프라인을 죽이지 않는가
 
 ## 알려진 한계
 
@@ -163,7 +180,8 @@ cd simulator && uv run pytest
   다루지 않습니다.
 - **인증·권한이 없습니다.** 단일 사용자 로컬 도구를 전제로 합니다.
   Mosquitto 익명 접속 허용, WebSocket 오리진 전체 허용 상태입니다.
-- **통합 테스트가 없습니다.** Testcontainers 로 MQTT·DB 를 띄우는 검증이 필요합니다.
+- **WebSocket 브로드캐스트는 통합 테스트에 없습니다.** REST·MQTT·DB 경로는 덮었지만
+  STOMP 구간은 여전히 수동 확인입니다.
 
 ## 로드맵
 
@@ -177,7 +195,7 @@ cd simulator && uv run pytest
 - [x] Flyway 스키마 관리
 - [x] 부하 테스트 (초당 282 메시지)
 - [x] 로봇 OFFLINE 상태, 유령 로봇 제거
-- [ ] Testcontainers 통합 테스트
+- [x] Testcontainers 통합 테스트
 - [ ] Three.js 3D 뷰, 히스토리 차트
 
 범위와 판단 근거는 [docs/000-scope.md](docs/000-scope.md) 참고.

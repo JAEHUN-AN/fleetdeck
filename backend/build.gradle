@@ -34,9 +34,72 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testImplementation 'org.awaitility:awaitility'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// 단위 테스트는 Docker 없이 돌아야 한다. 통합 테스트는 태그로 분리한다.
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'integration'
+	}
+}
+
+// 실제 Mosquitto·TimescaleDB 컨테이너를 띄워 MQTT -> DB -> WebSocket 경로를 검증한다.
+tasks.register('integrationTest', Test) {
+	description = 'Testcontainers 기반 통합 테스트 (Docker 필요)'
+	group = 'verification'
+	useJUnitPlatform {
+		includeTags 'integration'
+	}
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	shouldRunAfter tasks.named('test')
+
+	// Windows + Docker Desktop 은 활성 컨텍스트가 dockerDesktopLinuxEngine 파이프를 쓰는데
+	// Testcontainers 는 기본 docker_engine 파이프만 찾아 "Could not find a valid Docker
+	// environment" 로 죽는다. docker CLI 가 아는 endpoint 를 그대로 넘겨준다.
+	//
+	// 셸에서 DOCKER_HOST 를 넘기는 방법은 Git Bash 의 MSYS 경로 변환이
+	// npipe:////./pipe/... 를 망가뜨려 쓸 수 없다. 그래서 여기서 직접 읽어 주입한다.
+	doFirst {
+		def host = System.getenv('DOCKER_HOST') ?: dockerQuery('context', 'inspect',
+				'--format', '{{.Endpoints.docker.Host}}')
+		if (host) {
+			environment 'DOCKER_HOST', host
+			systemProperty 'DOCKER_HOST', host
+			logger.lifecycle("integrationTest DOCKER_HOST=${host}")
+		}
+		else {
+			logger.warn('docker endpoint 를 찾지 못했다. Docker Desktop 이 떠 있는지 확인할 것.')
+		}
+
+		// docker-java 가 기본으로 요청하는 API 버전이 이 데몬의 MinAPIVersion 보다 낮으면
+		// /info 가 400 을 돌려준다 (Docker 29.x 기준 Min 1.40). 서버가 말하는 버전을 그대로 쓴다.
+		def apiVersion = System.getenv('DOCKER_API_VERSION') ?: dockerQuery(
+				'version', '--format', '{{.Server.APIVersion}}')
+		if (apiVersion) {
+			environment 'DOCKER_API_VERSION', apiVersion
+			// docker-java 는 시스템 프로퍼티로는 api.version 키를 읽는다.
+			systemProperty 'api.version', apiVersion
+			logger.lifecycle("integrationTest DOCKER_API_VERSION=${apiVersion}")
+		}
+	}
+}
+
+/** docker CLI 질의. CLI 가 없거나 실패하면 null. */
+String dockerQuery(String... args) {
+	try {
+		def command = ['docker'] + args.toList()
+		def proc = new ProcessBuilder(command).redirectErrorStream(true).start()
+		def out = proc.inputStream.text.trim()
+		return proc.waitFor() == 0 && out ? out : null
+	}
+	catch (Exception e) {
+		logger.warn("docker 질의 실패 (${args.join(' ')}): ${e.message}")
+		return null
+	}
 }
