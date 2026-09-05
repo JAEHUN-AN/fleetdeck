@@ -133,6 +133,8 @@ cd frontend && npm install && npm run dev
 | `fleetdeck.dispatch.interval` | `FLEETDECK_DISPATCH_INTERVAL` | 3s | PENDING 재배정 주기 |
 | `fleetdeck.dispatch.stale-after` | `FLEETDECK_STALE_AFTER` | 60s | 회수 기준 (로봇 예약 TTL 겸용) |
 | `fleetdeck.dispatch.max-retries` | `FLEETDECK_MAX_RETRIES` | 3 | 재시도 상한. 초과 시 FAILED |
+| `fleetdeck.robot.offline-after` | `FLEETDECK_OFFLINE_AFTER` | 15s | 이 시간 무보고 시 OFFLINE. 배정 후보 제외 |
+| `fleetdeck.robot.evict-after` | `FLEETDECK_EVICT_AFTER` | 5m | 이 시간 무보고 시 레지스트리에서 제거 |
 | `fleetdeck.wms.enabled` | `FLEETDECK_WMS_ENABLED` | true | 모의 WMS 주문 생성기 |
 | `fleetdeck.wms.interval` | `FLEETDECK_WMS_INTERVAL` | 12s | 주문 생성 주기 |
 | `SIM_ROBOT_COUNT` / `SIM_SORTER_COUNT` | — | 8 / 3 | 시뮬레이터 규모 |
@@ -152,9 +154,6 @@ cd simulator && uv run pytest
 
 ## 알려진 한계
 
-- **로봇 OFFLINE 상태가 없습니다.** 보고가 끊긴 로봇이 레지스트리에 영구히 남아
-  디스패처가 죽은 로봇에 배정할 수 있습니다. 재시도 상한이 있어 미션이 갇히지는
-  않지만 매번 상한까지 낭비합니다. 부하 테스트에서 실측으로 확인했습니다.
 - **경로 계획이 없습니다.** `from → to` 직행이고 통로 경유점·교통 제어·충돌 회피는
   다루지 않습니다.
 - **인증·권한이 없습니다.** 단일 사용자 로컬 도구를 전제로 합니다.
@@ -172,7 +171,7 @@ cd simulator && uv run pytest
 - [x] 중복 배정 차단, 정체 회수, 재시도 상한
 - [x] Flyway 스키마 관리
 - [x] 부하 테스트 (초당 282 메시지)
-- [ ] 로봇 OFFLINE 상태
+- [x] 로봇 OFFLINE 상태, 유령 로봇 제거
 - [ ] Testcontainers 통합 테스트
 - [ ] Three.js 3D 뷰, 히스토리 차트
 
