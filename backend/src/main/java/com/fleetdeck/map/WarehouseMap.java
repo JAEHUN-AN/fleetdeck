@@ -44,10 +44,10 @@ public class WarehouseMap {
 		put(nodes, new Node("W01", 20.0, 6.0, NodeKind.WAYPOINT));
 		put(nodes, new Node("W02", 20.0, 12.0, NodeKind.WAYPOINT));
 		put(nodes, new Node("W03", 20.0, 18.0, NodeKind.WAYPOINT));
-		// 소터 투입 지점 (하단, 시뮬레이터의 소터 위치 근처)
-		put(nodes, new Node("D01", 5.0, 21.0, NodeKind.DROP));
-		put(nodes, new Node("D02", 17.0, 21.0, NodeKind.DROP));
-		put(nodes, new Node("D03", 29.0, 21.0, NodeKind.DROP));
+		// 소터 투입 지점. 소터 설비(y=22) 앞에 서되, 정차한 로봇이 설비와 겹치지 않게 3m 띄운다.
+		put(nodes, new Node("D01", 5.0, 19.0, NodeKind.DROP));
+		put(nodes, new Node("D02", 17.0, 19.0, NodeKind.DROP));
+		put(nodes, new Node("D03", 29.0, 19.0, NodeKind.DROP));
 		// 우측 보관 구역
 		put(nodes, new Node("P07", 30.0, 8.0, NodeKind.PICK));
 		put(nodes, new Node("P08", 30.0, 14.0, NodeKind.PICK));

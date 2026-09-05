@@ -50,7 +50,8 @@ export function FleetMap({ robots, equipment, nodes, width = 40, height = 25 }: 
         {nodes.map((n) => (
           <g key={n.nodeId} className={`node node--${n.kind.toLowerCase()}`}>
             <circle cx={n.x} cy={n.y} r={NODE_RADIUS} />
-            <text transform={label(n.x, n.y + NODE_RADIUS + 0.6)} textAnchor="middle">{n.nodeId}</text>
+            {/* 노드 라벨은 아래에. 로봇이 노드에 정차하면 로봇 라벨(위)과 겹치기 때문. */}
+            <text transform={label(n.x, n.y - NODE_RADIUS - 0.45)} textAnchor="middle">{n.nodeId}</text>
           </g>
         ))}
 
