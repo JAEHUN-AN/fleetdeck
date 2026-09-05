@@ -210,3 +210,7 @@ MQTT → 적재 → 미션 전이 → order 발행 → STOMP 브로드캐스트�
 - [ ] A* 경로 계획, 교통 제어
 
 범위와 판단 근거는 [docs/000-scope.md](docs/000-scope.md) 참고.
+
+## 라이선스
+
+[MIT](LICENSE)
