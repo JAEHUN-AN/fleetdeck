@@ -73,6 +73,25 @@ body {
   text-transform: uppercase; color: var(--text-dim);
 }
 .panel--map { padding-bottom: 8px; }
+
+/* 맵 헤더 + 2D/3D 전환 */
+.panel__head { display: flex; justify-content: space-between; align-items: center; }
+.panel__head h2 { margin-bottom: 10px; }
+.viewtoggle { display: flex; gap: 2px; margin-bottom: 10px; }
+.viewtoggle button {
+  background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 11px; padding: 3px 10px; cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.viewtoggle button:first-child { border-radius: 4px 0 0 4px; }
+.viewtoggle button:last-child { border-radius: 0 4px 4px 0; }
+.viewtoggle button:hover { color: var(--text); }
+.viewtoggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.viewtoggle button.is-active { color: var(--accent); border-color: var(--accent); }
+
+/* 3D 뷰 — three.js 캔버스가 채운다 */
+.warehouse3d { flex: 1; min-height: 0; border-radius: var(--radius); overflow: hidden; }
+.warehouse3d canvas { display: block; width: 100%; height: 100%; }
 .empty { color: var(--text-dim); margin: 0; }
 
 /* 맵 */

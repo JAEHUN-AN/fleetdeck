@@ -1,3 +1,4 @@
+import { Suspense, lazy, useState } from 'react';
 import { EquipmentPanel } from './components/EquipmentPanel';
 import { FleetMap } from './components/FleetMap';
 import { HistoryChart } from './components/HistoryChart';
@@ -5,8 +6,16 @@ import { MissionPanel } from './components/MissionPanel';
 import { RobotList } from './components/RobotList';
 import { useFleet } from './hooks/useFleet';
 
+// three.js 는 600KB 가 넘는다. 3D 를 고른 사람만 내려받게 한다.
+const Warehouse3D = lazy(() =>
+  import('./components/Warehouse3D').then((m) => ({ default: m.Warehouse3D })),
+);
+
+type MapView = '2d' | '3d';
+
 export function App() {
   const { robots, equipment, missions, nodes, connected, lastError } = useFleet();
+  const [view, setView] = useState<MapView>('2d');
 
   const alarms = equipment.filter((e) => e.status === 'ALARM').length;
   const offline = robots.filter((r) => !r.online).length;
@@ -37,9 +46,32 @@ export function App() {
 
       <main className="layout">
         <section className="panel panel--map" aria-labelledby="map-heading">
-          <h2 id="map-heading">현장 맵</h2>
-          <FleetMap robots={robots} equipment={equipment} nodes={nodes} />
+          <div className="panel__head">
+            <h2 id="map-heading">현장 맵</h2>
+            <div className="viewtoggle" role="group" aria-label="맵 보기 전환">
+              {(['2d', '3d'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={view === v ? 'is-active' : undefined}
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                >
+                  {v.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {view === '2d' ? (
+            <FleetMap robots={robots} equipment={equipment} nodes={nodes} />
+          ) : (
+            <Suspense fallback={<p className="empty">3D 뷰 불러오는 중…</p>}>
+              <Warehouse3D robots={robots} equipment={equipment} nodes={nodes} />
+            </Suspense>
+          )}
         </section>
+
         <aside className="side">
           <section className="panel" aria-labelledby="missions-heading">
             <h2 id="missions-heading">미션</h2>
@@ -55,12 +87,7 @@ export function App() {
           </section>
           <section className="panel" aria-labelledby="history-heading">
             <h2 id="history-heading">최근 30분 추이</h2>
-            <HistoryChart
-              metric="fleet-driving-ratio"
-              title="플릿 가동률"
-              unit="%"
-              yMax={100}
-            />
+            <HistoryChart metric="fleet-driving-ratio" title="플릿 가동률" unit="%" yMax={100} />
             <HistoryChart metric="equipment-throughput" title="소터 처리량" unit="" />
             <HistoryChart metric="robot-battery" title="로봇 배터리" unit="%" yMax={100} />
           </section>

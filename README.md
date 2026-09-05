@@ -66,7 +66,7 @@ WMS 주문 ──▶ PENDING ──▶ ASSIGNED ──▶ RUNNING ──▶ DONE
 |------|------|------|
 | `simulator/` | 가상 AMR(order 수행)·소터 상태 발행 | Python 3.12, paho-mqtt, uv |
 | `backend/` | MQTT 수집 → 적재 → 중계, 미션 API·디스패처·생명주기 | Spring Boot 3.5, Spring Integration, JDBC, Flyway |
-| `frontend/` | 실시간 대시보드 (2D 맵, 미션·로봇·설비 패널) | React 18, Vite, TypeScript, @stomp/stompjs |
+| `frontend/` | 실시간 대시보드 (2D/3D 맵, 미션·로봇·설비 패널, 시계열 차트) | React 18, Vite, TypeScript, @stomp/stompjs, three |
 | `infra/` | Mosquitto 설정 | eclipse-mosquitto 2 |
 | `docs/` | 범위, 판단 근거, 측정 기록 | Markdown |
 
@@ -198,6 +198,8 @@ MQTT → 적재 → 미션 전이 → order 발행 → STOMP 브로드캐스트�
 - [x] 부하 테스트 (초당 282 메시지)
 - [x] 로봇 OFFLINE 상태, 유령 로봇 제거
 - [x] Testcontainers 통합 테스트
-- [ ] Three.js 3D 뷰, 히스토리 차트
+- [x] 시계열 히스토리 API 와 차트 (time_bucket 집계)
+- [x] Three.js 3D 뷰 (2D/3D 전환, 지연 로딩)
+- [ ] 경로 계획 (통로 경유점, 교통 제어)
 
 범위와 판단 근거는 [docs/000-scope.md](docs/000-scope.md) 참고.
