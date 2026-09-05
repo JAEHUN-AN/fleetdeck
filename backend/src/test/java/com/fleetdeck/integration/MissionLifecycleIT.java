@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fleetdeck.mission.Mission;
 import com.fleetdeck.mission.MissionRepository;
+import com.fleetdeck.robot.RobotRegistry;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * 주문 생성부터 완료 보고까지 제어 루프 전체를 실제 MQTT 로 돌려본다.
@@ -35,10 +38,21 @@ class MissionLifecycleIT extends IntegrationTestBase {
 	@Autowired
 	private MissionRepository missions;
 
+	@Autowired
+	private RobotRegistry robots;
+
+	@Autowired
+	private JdbcTemplate jdbc;
+
 	private TestMqtt robot;
 
 	@BeforeEach
 	void connect() throws Exception {
+		// Spring 컨텍스트가 테스트 클래스 사이에서 공유되므로, 다른 테스트가 남긴
+		// 로봇과 열린 미션이 배정 판단에 끼어든다. 배정 로직을 보려면 먼저 비워야 한다.
+		robots.evictStale(Instant.now().plus(Duration.ofDays(1)));
+		jdbc.update("UPDATE mission SET status = 'DONE' WHERE status NOT IN ('DONE', 'FAILED')");
+
 		robot = new TestMqtt(mqttUrl(), "it-mission-" + System.nanoTime());
 		robot.subscribe(Vda5050Fixtures.orderTopicFilter());
 	}

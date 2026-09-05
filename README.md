@@ -161,10 +161,10 @@ cd simulator && uv run pytest
 **단위 테스트** — 백엔드 43개, 시뮬레이터 20개. Docker 없이 돕니다.
 상태 전이·로봇 선정·재시도 판정은 순수 함수로 분리해 덮었습니다.
 
-**통합 테스트** — 9개. Testcontainers 로 실제 Mosquitto·TimescaleDB 를 띄워
-MQTT → 적재 → 미션 전이 → order 발행까지 흘려봅니다 (`@Tag("integration")` 으로
-분리되어 `test` 태스크에서는 제외됩니다). 빈 DB 에 Flyway 가 V1 을 적용하므로
-마이그레이션도 함께 검증됩니다.
+**통합 테스트** — 13개. Testcontainers 로 실제 Mosquitto·TimescaleDB 를 띄워
+MQTT → 적재 → 미션 전이 → order 발행 → STOMP 브로드캐스트까지 흘려봅니다
+(`@Tag("integration")` 으로 분리되어 `test` 태스크에서는 제외됩니다).
+빈 DB 에 Flyway 가 V1 을 적용하므로 마이그레이션도 함께 검증됩니다.
 
 지금까지 잡은 결함(중복 배정, 유령 로봇, order 의 `nodePosition` 누락)은 모두
 단위 테스트를 통과하고 통합 구간에서만 드러났습니다. 그래서 다음을 직접 확인합니다.
@@ -173,6 +173,8 @@ MQTT → 적재 → 미션 전이 → order 발행까지 흘려봅니다 (`@Tag(
 - 로봇 보고에 따라 미션이 ASSIGNED → RUNNING → DONE 으로 전이하는가
 - 한 로봇이 열린 미션을 둘 이상 갖지 않는가
 - 깨진 JSON 이 파이프라인을 죽이지 않는가
+- 대시보드가 구독하는 STOMP 프레임이 실제로 나가고, `online`/`lastSeenAt` 이
+  평탄화되어 실리는가 (여기가 깨지면 화면의 모든 로봇이 오프라인으로 보인다)
 
 ## 알려진 한계
 
@@ -180,8 +182,8 @@ MQTT → 적재 → 미션 전이 → order 발행까지 흘려봅니다 (`@Tag(
   다루지 않습니다.
 - **인증·권한이 없습니다.** 단일 사용자 로컬 도구를 전제로 합니다.
   Mosquitto 익명 접속 허용, WebSocket 오리진 전체 허용 상태입니다.
-- **WebSocket 브로드캐스트는 통합 테스트에 없습니다.** REST·MQTT·DB 경로는 덮었지만
-  STOMP 구간은 여전히 수동 확인입니다.
+- **히스토리 조회 API 가 없습니다.** 텔레메트리를 TimescaleDB 에 쌓지만 화면은
+  최신값만 씁니다. 시계열을 보여주는 차트가 없습니다.
 
 ## 로드맵
 
