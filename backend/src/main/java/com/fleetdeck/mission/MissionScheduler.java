@@ -6,6 +6,7 @@ import com.fleetdeck.map.WarehouseMap;
 import com.fleetdeck.robot.RobotRegistry;
 import com.fleetdeck.robot.RobotReservations;
 import com.fleetdeck.robot.RobotStateMessage;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -128,6 +129,16 @@ public class MissionScheduler {
 					mission.assignedRobot(), props.dispatch().staleAfter().toSeconds());
 		}
 		messaging.convertAndSend(WebSocketConfig.MISSIONS_TOPIC, reclaimed);
+	}
+
+	/** 오래 소식 없는 로봇을 레지스트리에서 지운다. 규모를 줄였을 때 유령이 남지 않게 한다. */
+	@Scheduled(fixedDelayString = "${fleetdeck.robot.evict-interval:30s}")
+	public void evictStaleRobots() {
+		List<String> gone = robots.evictStale(Instant.now());
+		if (!gone.isEmpty()) {
+			log.warn("로봇 {}대 제거 (소식 끊긴 지 {}초 초과): {}",
+					gone.size(), props.robot().evictAfter().toSeconds(), String.join(", ", gone));
+		}
 	}
 
 	@Scheduled(fixedDelayString = "${fleetdeck.wms.interval:12s}")

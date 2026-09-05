@@ -38,6 +38,9 @@ export interface RobotState {
   operatingMode?: string;
   nodeStates?: NodeState[];
   errors?: RobotErrorEntry[];
+  /** 관제가 판단한 생존 여부. 백엔드 수신 시각 기준이며 로봇 시계와 무관하다. */
+  online: boolean;
+  lastSeenAt?: string;
 }
 
 export type EquipmentStatus = 'RUNNING' | 'STOPPED' | 'ALARM';
@@ -79,9 +82,11 @@ export interface MapNode {
   kind: NodeKind;
 }
 
-export type RobotActivity = 'charging' | 'driving' | 'paused' | 'idle';
+export type RobotActivity = 'offline' | 'charging' | 'driving' | 'paused' | 'idle';
 
+/** 오프라인이 최우선. 통신이 끊긴 로봇의 마지막 상태는 신뢰할 수 없다. */
 export function robotActivity(robot: RobotState): RobotActivity {
+  if (!robot.online) return 'offline';
   if (robot.batteryState?.charging) return 'charging';
   if (robot.paused) return 'paused';
   if (robot.driving) return 'driving';

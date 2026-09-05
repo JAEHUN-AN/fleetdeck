@@ -8,6 +8,7 @@ export function App() {
   const { robots, equipment, missions, nodes, connected, lastError } = useFleet();
 
   const alarms = equipment.filter((e) => e.status === 'ALARM').length;
+  const offline = robots.filter((r) => !r.online).length;
   const openMissions = missions.filter((m) => m.status !== 'DONE' && m.status !== 'FAILED').length;
   const doneMissions = missions.filter((m) => m.status === 'DONE').length;
 
@@ -20,6 +21,7 @@ export function App() {
         </div>
         <div className="stats">
           <Stat label="로봇" value={robots.length} />
+          <Stat label="오프라인" value={offline} tone={offline > 0 ? 'alarm' : undefined} />
           <Stat label="설비" value={equipment.length} />
           <Stat label="알람" value={alarms} tone={alarms > 0 ? 'alarm' : undefined} />
           <Stat label="진행" value={openMissions} />

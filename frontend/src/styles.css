@@ -88,6 +88,10 @@ body {
 .robot--charging .robot-heading { stroke: var(--warn); }
 .robot--idle circle { fill: var(--idle); }
 .robot--idle .robot-heading { stroke: var(--idle); }
+/* 오프라인: 위치가 낡은 값이므로 흐릿하게, 테두리만 남긴다 */
+.robot--offline { opacity: 0.4; }
+.robot--offline circle { fill: none; stroke: var(--text-dim); stroke-width: 0.16; }
+.robot--offline .robot-heading { stroke: var(--text-dim); stroke-dasharray: 0.3 0.3; }
 .robot--paused circle { fill: var(--alarm); }
 .robot--paused .robot-heading { stroke: var(--alarm); }
 /* 창고 노드 */
@@ -125,6 +129,9 @@ body {
 .badge--charging { color: var(--warn); }
 .badge--paused { color: var(--alarm); }
 .badge--idle { color: var(--text-dim); }
+.badge--offline { color: var(--alarm); background: oklch(28% 0.06 25); }
+.row--offline td { opacity: 0.55; }
+.robot-table__stale { font-size: 11px; color: var(--text-dim); }
 .battery { position: relative; height: 18px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .battery-fill { position: absolute; inset: 0 auto 0 0; background: var(--ok); opacity: 0.55; }
 .battery span { position: relative; padding-left: 6px; font-size: 11px; line-height: 18px; }

@@ -1,5 +1,6 @@
 package com.fleetdeck.robot;
 
+import java.time.Instant;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,13 +19,13 @@ public class RobotController {
 	}
 
 	@GetMapping
-	public List<RobotStateMessage> list() {
-		return registry.all();
+	public List<RobotView> list() {
+		return registry.views(Instant.now());
 	}
 
 	@GetMapping("/{serial}")
-	public ResponseEntity<RobotStateMessage> get(@PathVariable String serial) {
-		return registry.find(serial)
+	public ResponseEntity<RobotView> get(@PathVariable String serial) {
+		return registry.view(serial, Instant.now())
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}

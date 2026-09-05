@@ -54,7 +54,9 @@ public class MissionDispatcher {
 		}
 
 		Instant now = Instant.now();
-		Optional<RobotStateMessage> picked = pickIdleRobot(robots.all(), reservations.reservedSerials(now));
+		// 오프라인 로봇은 마지막 상태가 유휴로 남아 있어도 후보에서 뺀다.
+		Optional<RobotStateMessage> picked =
+				pickIdleRobot(robots.onlineStates(now), reservations.reservedSerials(now));
 		if (picked.isEmpty()) {
 			log.debug("no idle robot for mission {}", mission.id());
 			return mission;

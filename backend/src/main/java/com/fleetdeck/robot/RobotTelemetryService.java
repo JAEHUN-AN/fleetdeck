@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fleetdeck.config.WebSocketConfig;
 import com.fleetdeck.mission.MissionLifecycle;
 import com.fleetdeck.telemetry.TelemetryRepository;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -12,7 +13,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 /**
- * 로봇 state JSON → 파싱 → 최신값 갱신 → 예약 해제 → DB 적재 → 미션 상태 전이 → WebSocket 브로드캐스트.
+ * 로봇 state JSON → 파싱 → 최신값·수신시각 갱신 → 예약 해제 → DB 적재
+ * → 미션 상태 전이 → WebSocket 브로드캐스트.
  */
 @Service
 public class RobotTelemetryService {
@@ -51,12 +53,14 @@ public class RobotTelemetryService {
 			return;
 		}
 
-		registry.upsert(state);
+		// 로봇 시계를 믿지 않고 수신 시각으로 생존을 판단한다.
+		Instant receivedAt = Instant.now();
+		registry.upsert(state, receivedAt);
 		// 로봇이 예약된 order 를 보고했으면 수령 확인이므로 예약을 푼다.
 		reservations.onRobotState(state);
 		persist(state, json);
 		missionLifecycle.onRobotState(state);
-		messaging.convertAndSend(WebSocketConfig.ROBOTS_TOPIC, state);
+		messaging.convertAndSend(WebSocketConfig.ROBOTS_TOPIC, registry.toView(state, receivedAt));
 	}
 
 	private void persist(RobotStateMessage state, String json) {

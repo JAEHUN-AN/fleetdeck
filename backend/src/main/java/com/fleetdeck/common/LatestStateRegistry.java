@@ -27,6 +27,10 @@ public class LatestStateRegistry<T> {
 		return Optional.ofNullable(latest.get(key));
 	}
 
+	public void remove(String key) {
+		latest.remove(key);
+	}
+
 	public List<T> all() {
 		return latest.values().stream()
 				.sorted(Comparator.comparing(keyOf))

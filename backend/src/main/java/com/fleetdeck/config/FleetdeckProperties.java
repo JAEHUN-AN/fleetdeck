@@ -4,9 +4,19 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "fleetdeck")
-public record FleetdeckProperties(Mqtt mqtt, Dispatch dispatch, Wms wms) {
+public record FleetdeckProperties(Mqtt mqtt, Dispatch dispatch, Wms wms, Robot robot) {
 
 	public record Mqtt(String url, String clientId, String manufacturer) {
+	}
+
+	/**
+	 * 로봇 생존 판정.
+	 *
+	 * @param offlineAfter 이 시간 동안 텔레메트리가 없으면 OFFLINE 으로 본다. 배정 후보에서 빠진다.
+	 * @param evictAfter   이 시간 동안 소식이 없으면 레지스트리에서 지운다.
+	 *                     규모를 줄였을 때 유령 로봇이 남지 않게 한다.
+	 */
+	public record Robot(Duration offlineAfter, Duration evictAfter) {
 	}
 
 	/**
