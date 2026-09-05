@@ -1,4 +1,8 @@
--- fleetdeck 초기 스키마. TimescaleDB 이미지에서 실행됨.
+-- fleetdeck 초기 스키마.
+--
+-- 기존에 infra/postgres/init 로 만들어진 DB 도 있으므로 전부 멱등하게 쓴다.
+-- (그런 DB 는 flyway.baseline-on-migrate 로 baseline 처리되어 이 파일이 실행되지 않지만,
+--  수동 재실행이 필요할 때를 대비한다)
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 -- 로봇 텔레메트리 (VDA5050 state 요약 + 원문)
@@ -46,7 +50,3 @@ CREATE TABLE IF NOT EXISTS mission (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_mission_status ON mission (status, created_at);
-
--- 마이그레이션 도구가 없어 이 파일을 기존 DB 에 다시 돌릴 수 있도록 멱등하게 둔다.
--- (init 디렉터리는 볼륨이 비어 있을 때만 자동 실행되므로 기존 DB 에는 수동 적용이 필요하다)
-ALTER TABLE mission ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0;

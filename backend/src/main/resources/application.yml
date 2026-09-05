@@ -10,6 +10,13 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:change-me}
   jackson:
     default-property-inclusion: non_null
+  flyway:
+    enabled: true
+    # 이미 테이블이 있는 기존 DB(예전 infra/postgres/init 로 만든 것)는
+    # baseline 처리해 V1 을 건너뛰고, 이후 버전부터 적용한다.
+    baseline-on-migrate: true
+    baseline-version: 1
+    baseline-description: "pre-flyway schema"
 
 fleetdeck:
   mqtt:
