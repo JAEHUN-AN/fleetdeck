@@ -91,14 +91,50 @@ public class MissionDispatcher {
 				.max(Comparator.comparingDouble(RobotStateMessage::batteryCharge));
 	}
 
-	/** from -> to 경로. 지금은 직행이고, 통로 경유점 삽입은 이후 경로 계획에서 다룬다. */
+	/**
+	 * from -> to 경로. 통로를 가로지르는 이동이면 경유점을 하나 끼운다.
+	 *
+	 * 한계: 같은 쪽 안에서의 이동은 여전히 직행이라 랙 사이를 지날 수 있다.
+	 * 제대로 하려면 통행 가능 그래프 위에서 A* 를 돌려야 한다.
+	 */
 	private List<WarehouseMap.Node> buildRoute(Mission mission) {
 		Optional<WarehouseMap.Node> from = warehouseMap.find(mission.fromNode());
 		Optional<WarehouseMap.Node> to = warehouseMap.find(mission.toNode());
 		if (from.isEmpty() || to.isEmpty()) {
 			return List.of();
 		}
-		return List.of(from.get(), to.get());
+
+		List<WarehouseMap.Node> corridor = warehouseMap.byKind(WarehouseMap.NodeKind.WAYPOINT);
+		return corridorWaypoint(from.get(), to.get(), corridor)
+				.map(via -> List.of(from.get(), via, to.get()))
+				.orElseGet(() -> List.of(from.get(), to.get()));
+	}
+
+	/**
+	 * 통로를 건너야 하면 우회 거리가 가장 짧은 경유점을 고른다. 순수 함수라 단위 테스트 대상.
+	 *
+	 * 통로는 경유점들이 늘어선 세로선이다. 출발지와 목적지가 그 선의 반대편에 있으면
+	 * 직선으로 갈 때 사이의 랙을 관통하므로 경유점을 거쳐야 한다.
+	 */
+	static Optional<WarehouseMap.Node> corridorWaypoint(WarehouseMap.Node from, WarehouseMap.Node to,
+			List<WarehouseMap.Node> corridor) {
+		if (corridor.isEmpty()) {
+			return Optional.empty();
+		}
+		double corridorX = corridor.stream().mapToDouble(WarehouseMap.Node::x).average().orElseThrow();
+		if (!crossesCorridor(from, to, corridorX)) {
+			return Optional.empty();
+		}
+		return corridor.stream()
+				.min(Comparator.comparingDouble(w -> distance(from, w) + distance(w, to)));
+	}
+
+	private static boolean crossesCorridor(WarehouseMap.Node from, WarehouseMap.Node to, double corridorX) {
+		return (from.x() - corridorX) * (to.x() - corridorX) < 0;
+	}
+
+	private static double distance(WarehouseMap.Node a, WarehouseMap.Node b) {
+		return Math.hypot(a.x() - b.x(), a.y() - b.y());
 	}
 
 	private String orderTopic(RobotStateMessage robot) {
