@@ -8,6 +8,7 @@ const ACTIVITY_LABEL: Record<ReturnType<typeof robotActivity>, string> = {
   offline: '오프라인',
   charging: '충전',
   driving: '주행',
+  returning: '복귀',
   paused: '일시정지',
   idle: '대기',
 };

@@ -19,8 +19,7 @@ from fleetsim.config import SimConfig
 log = logging.getLogger("fleetsim")
 
 PARK_ROW_Y = 2.0
-PARK_SPACING_X = 6.0
-PARK_FIRST_X = 4.0
+PARK_MARGIN_X = 3.0
 
 # MQTT 콜백은 별도 스레드에서 돈다. 상태를 직접 만지지 않고 큐로 넘겨
 # 틱 루프에서만 적용한다 (락 없이 단일 소유권 유지).
@@ -99,13 +98,21 @@ def run() -> None:
 
 
 def _spawn_fleet(cfg: SimConfig, rng: random.Random) -> dict[str, robot_model.RobotState]:
-    """대기 열에 나란히 세운다."""
+    """대기 열에 겹치지 않게 고르게 세운다. 이 자리가 각 로봇의 복귀 슬롯이 된다."""
     fleet: dict[str, robot_model.RobotState] = {}
     for i in range(cfg.robot_count):
         serial = f"AMR-{i + 1:03d}"
-        x = min(PARK_FIRST_X + i * PARK_SPACING_X, cfg.map_width - 2.0)
-        fleet[serial] = robot_model.spawn(serial, x=x, y=PARK_ROW_Y, rng=rng)
+        fleet[serial] = robot_model.spawn(
+            serial, x=_park_x(i, cfg.robot_count, cfg.map_width), y=PARK_ROW_Y, rng=rng
+        )
     return fleet
+
+
+def _park_x(index: int, count: int, map_width: float) -> float:
+    usable = map_width - 2 * PARK_MARGIN_X
+    if count <= 1:
+        return PARK_MARGIN_X + usable / 2
+    return PARK_MARGIN_X + usable * index / (count - 1)
 
 
 def _apply_pending_orders(fleet: dict[str, robot_model.RobotState]) -> None:

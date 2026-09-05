@@ -88,6 +88,9 @@ body {
 .robot--charging .robot-heading { stroke: var(--warn); }
 .robot--idle circle { fill: var(--idle); }
 .robot--idle .robot-heading { stroke: var(--idle); }
+/* 복귀: 주문 없이 대기 슬롯으로 가는 중. 주행과 구분되게 옅은 색 */
+.robot--returning circle { fill: oklch(58% 0.07 200); }
+.robot--returning .robot-heading { stroke: oklch(58% 0.07 200); }
 /* 오프라인: 위치가 낡은 값이므로 흐릿하게, 테두리만 남긴다 */
 .robot--offline { opacity: 0.4; }
 .robot--offline circle { fill: none; stroke: var(--text-dim); stroke-width: 0.16; }

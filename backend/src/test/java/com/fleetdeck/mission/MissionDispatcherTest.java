@@ -25,13 +25,18 @@ class MissionDispatcherTest {
 		assertThat(picked).map(RobotStateMessage::serialNumber).hasValue("AMR-002");
 	}
 
+	private static RobotStateMessage executingOrder(String serial, double battery) {
+		// 주문 수행 중이면 nodeStates 에 남은 노드가 있다.
+		return RobotStates.of(serial, "M-1", true, false, battery,
+				List.of(new RobotStateMessage.NodeState("D01", 2, true)));
+	}
+
 	@Test
-	void skipsDrivingChargingAndRobotsWithRemainingNodes() {
+	void skipsChargingAndRobotsWithRemainingNodes() {
 		List<RobotStateMessage> fleet = List.of(
-				RobotStates.of("AMR-001", "M-1", true, false, 99.0, List.of()),
+				executingOrder("AMR-001", 99.0),
 				RobotStates.of("AMR-002", "", false, true, 98.0, List.of()),
-				RobotStates.of("AMR-003", "M-2", false, false, 97.0,
-						List.of(new RobotStateMessage.NodeState("D01", 2, true))),
+				executingOrder("AMR-003", 97.0),
 				RobotStates.idle("AMR-004", 40.0));
 
 		Optional<RobotStateMessage> picked = MissionDispatcher.pickIdleRobot(fleet, NONE_RESERVED);
@@ -40,11 +45,22 @@ class MissionDispatcherTest {
 	}
 
 	@Test
-	void returnsEmptyWhenNoIdleRobot() {
-		List<RobotStateMessage> fleet = List.of(
-				RobotStates.of("AMR-001", "M-1", true, false, 99.0, List.of()));
+	void returnsEmptyWhenEveryRobotIsBusy() {
+		List<RobotStateMessage> fleet = List.of(executingOrder("AMR-001", 99.0));
 
 		assertThat(MissionDispatcher.pickIdleRobot(fleet, NONE_RESERVED)).isEmpty();
+	}
+
+	@Test
+	void robotReturningToParkIsStillDispatchable() {
+		// 대기 슬롯으로 복귀 중(주행하지만 남은 노드 없음)이면 즉시 방향을 틀 수 있어야 한다.
+		List<RobotStateMessage> fleet = List.of(
+				RobotStates.of("AMR-001", "M-1", true, false, 90.0, List.of()),
+				RobotStates.idle("AMR-002", 50.0));
+
+		Optional<RobotStateMessage> picked = MissionDispatcher.pickIdleRobot(fleet, NONE_RESERVED);
+
+		assertThat(picked).map(RobotStateMessage::serialNumber).hasValue("AMR-001");
 	}
 
 	@Test

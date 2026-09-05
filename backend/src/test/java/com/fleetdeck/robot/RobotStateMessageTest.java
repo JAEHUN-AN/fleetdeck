@@ -51,7 +51,7 @@ class RobotStateMessageTest {
 		assertThat(m.nodeStates().get(0).nodeId()).isEqualTo("D02");
 		assertThat(m.isExecutingOrder()).isTrue();
 		assertThat(m.hasFinishedOrder()).isFalse();
-		assertThat(m.isIdle()).isFalse();
+		assertThat(m.isAvailable()).isFalse();
 	}
 
 	@Test
@@ -60,25 +60,35 @@ class RobotStateMessageTest {
 
 		assertThat(finished.hasFinishedOrder()).isTrue();
 		assertThat(finished.isExecutingOrder()).isFalse();
-		assertThat(finished.isIdle()).isTrue();
+		assertThat(finished.isAvailable()).isTrue();
 	}
 
 	@Test
-	void robotWithoutOrderIsIdleButHasNotFinishedAnything() {
+	void robotWithoutOrderIsAvailableButHasNotFinishedAnything() {
 		RobotStateMessage parked = RobotStates.of("AMR-002", "", false, false, 60.0, List.of());
 
 		assertThat(parked.hasOrder()).isFalse();
 		assertThat(parked.hasFinishedOrder()).isFalse();
-		assertThat(parked.isIdle()).isTrue();
+		assertThat(parked.isAvailable()).isTrue();
 	}
 
 	@Test
-	void isIdleRequiresNotDrivingNotChargingAndNoRemainingNodes() {
+	void availabilityIgnoresDrivingSoAReturningRobotCanBeDispatched() {
+		// 대기 슬롯으로 복귀 중: 주행하지만 진행 중인 주문은 없다. 배정 가능해야 한다.
+		RobotStateMessage returning = RobotStates.of("AMR-005", "M-9", true, false, 70.0, List.of());
+
+		assertThat(returning.driving()).isTrue();
+		assertThat(returning.remainingNodes()).isZero();
+		assertThat(returning.isAvailable()).isTrue();
+	}
+
+	@Test
+	void availabilityExcludesChargingAndRobotsWithRemainingNodes() {
 		RobotStateMessage charging = RobotStates.of("AMR-003", "", false, true, 10.0, List.of());
 		RobotStateMessage enRoute = RobotStates.of("AMR-004", "M-8", true, false, 80.0,
 				List.of(new RobotStateMessage.NodeState("D01", 2, true)));
 
-		assertThat(charging.isIdle()).isFalse();
-		assertThat(enRoute.isIdle()).isFalse();
+		assertThat(charging.isAvailable()).isFalse();
+		assertThat(enRoute.isAvailable()).isFalse();
 	}
 }

@@ -1,8 +1,8 @@
 """주문(order)을 받아 경유지를 따라 주행하는 가상 AMR. 상태는 불변, 전이는 순수 함수.
 
-주문이 없으면 제자리에 대기한다. 예전처럼 무작위로 배회하지 않는다.
-관제(RCS)가 주문을 줄 때만 움직이는 것이 실제 AMR 동작이고,
-대기 상태가 유지되어야 디스패처가 유휴 로봇을 고를 수 있다.
+주문이 없으면 자기 대기 슬롯으로 복귀한다. 실제 AMR 도 일을 마치면 투입 지점에
+계속 서 있지 않고 대기 구역으로 돌아간다. 복귀 주행 중에도 새 주문을 받으면
+즉시 그쪽으로 전환한다 (nodeStates 가 비어 있어 관제는 이 로봇을 가용으로 본다).
 """
 
 from __future__ import annotations
@@ -39,6 +39,8 @@ class RobotState:
     driving: bool
     charging: bool
     header_id: int
+    park_x: float = 0.0
+    park_y: float = 0.0
     waypoints: tuple[Waypoint, ...] = ()
     order_id: str = ""
     last_node_id: str = ""
@@ -47,9 +49,13 @@ class RobotState:
     def has_order(self) -> bool:
         return bool(self.waypoints)
 
+    @property
+    def is_parked(self) -> bool:
+        return math.hypot(self.park_x - self.x, self.park_y - self.y) <= ARRIVE_EPSILON_M
+
 
 def spawn(serial: str, x: float, y: float, rng: random.Random) -> RobotState:
-    """대기 위치에 정지 상태로 생성한다."""
+    """대기 슬롯에 정지 상태로 생성한다. 그 자리가 이 로봇의 복귀 지점이 된다."""
     return RobotState(
         serial=serial,
         x=x,
@@ -59,16 +65,18 @@ def spawn(serial: str, x: float, y: float, rng: random.Random) -> RobotState:
         driving=False,
         charging=False,
         header_id=0,
+        park_x=x,
+        park_y=y,
     )
 
 
 def assign_order(state: RobotState, order_id: str, waypoints: tuple[Waypoint, ...]) -> RobotState:
-    """RCS 가 내린 order 를 적용한다. 진행 중이던 주문은 덮어쓴다."""
+    """RCS 가 내린 order 를 적용한다. 복귀 중이었다면 즉시 주문 쪽으로 전환된다."""
     return replace(state, order_id=order_id, waypoints=waypoints, header_id=state.header_id + 1)
 
 
 def step(state: RobotState, dt: float) -> RobotState:
-    """dt초 후 상태. 충전 > 저배터리 > 주행 > 대기 순으로 판단한다."""
+    """dt초 후 상태. 충전 > 저배터리 > 주문 주행 > 대기 슬롯 복귀 > 정지 순."""
     next_header = state.header_id + 1
 
     if state.charging:
@@ -78,19 +86,39 @@ def step(state: RobotState, dt: float) -> RobotState:
     if state.battery <= LOW_BATTERY_PCT:
         return replace(state, driving=False, charging=True, header_id=next_header)
 
-    if not state.waypoints:
-        return replace(state, driving=False, header_id=next_header)
+    if state.waypoints:
+        return _drive_order(state, dt, next_header)
 
-    return _drive(state, dt, next_header)
+    if not state.is_parked:
+        return _drive_park(state, dt, next_header)
+
+    return replace(state, driving=False, header_id=next_header)
 
 
-def _drive(state: RobotState, dt: float, header_id: int) -> RobotState:
+def _drive_order(state: RobotState, dt: float, header_id: int) -> RobotState:
     target = state.waypoints[0]
-    dx, dy = target.x - state.x, target.y - state.y
-    dist = math.hypot(dx, dy)
+    moved = _move_toward(state, target.x, target.y, dt)
 
-    if dist <= ARRIVE_EPSILON_M:
+    if moved is None:
         return _arrive(state, target, header_id)
+    return replace(moved, driving=True, header_id=header_id)
+
+
+def _drive_park(state: RobotState, dt: float, header_id: int) -> RobotState:
+    """대기 슬롯으로 복귀. 주문이 아니므로 nodeStates 는 계속 비어 있다."""
+    moved = _move_toward(state, state.park_x, state.park_y, dt)
+
+    if moved is None:
+        return replace(state, x=state.park_x, y=state.park_y, driving=False, header_id=header_id)
+    return replace(moved, driving=True, header_id=header_id)
+
+
+def _move_toward(state: RobotState, tx: float, ty: float, dt: float) -> RobotState | None:
+    """목표로 dt 만큼 이동한 상태. 이미 도착했으면 None."""
+    dx, dy = tx - state.x, ty - state.y
+    dist = math.hypot(dx, dy)
+    if dist <= ARRIVE_EPSILON_M:
+        return None
 
     travel = min(SPEED_M_PER_S * dt, dist)
     ratio = travel / dist
@@ -100,8 +128,6 @@ def _drive(state: RobotState, dt: float, header_id: int) -> RobotState:
         y=state.y + dy * ratio,
         theta=math.atan2(dy, dx),
         battery=max(0.0, state.battery - travel * BATTERY_DRAIN_PER_M),
-        driving=True,
-        header_id=header_id,
     )
 
 

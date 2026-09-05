@@ -72,7 +72,14 @@ public record RobotStateMessage(
 		return hasOrder() && remainingNodes() == 0 && !driving;
 	}
 
-	public boolean isIdle() {
-		return !driving && !paused && !isCharging() && remainingNodes() == 0;
+	/**
+	 * 새 주문을 받을 수 있는 상태인가.
+	 *
+	 * driving 은 보지 않는다. 로봇은 주문이 없을 때 대기 슬롯으로 복귀하며 주행하는데,
+	 * 그 상태에서도 즉시 배정받아 방향을 틀 수 있어야 한다.
+	 * 진행 중인 주문의 유무는 nodeStates 가 말해준다 — 주문 수행 중에는 항상 차 있다.
+	 */
+	public boolean isAvailable() {
+		return !paused && !isCharging() && remainingNodes() == 0;
 	}
 }

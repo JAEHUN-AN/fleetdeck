@@ -82,14 +82,17 @@ export interface MapNode {
   kind: NodeKind;
 }
 
-export type RobotActivity = 'offline' | 'charging' | 'driving' | 'paused' | 'idle';
+export type RobotActivity = 'offline' | 'charging' | 'driving' | 'returning' | 'paused' | 'idle';
 
-/** 오프라인이 최우선. 통신이 끊긴 로봇의 마지막 상태는 신뢰할 수 없다. */
+/**
+ * 오프라인이 최우선 — 통신이 끊긴 로봇의 마지막 상태는 신뢰할 수 없다.
+ * 주행 중이지만 남은 노드가 없으면 대기 슬롯으로 복귀하는 중이다 (배정은 여전히 가능).
+ */
 export function robotActivity(robot: RobotState): RobotActivity {
   if (!robot.online) return 'offline';
   if (robot.batteryState?.charging) return 'charging';
   if (robot.paused) return 'paused';
-  if (robot.driving) return 'driving';
+  if (robot.driving) return remainingNodes(robot) > 0 ? 'driving' : 'returning';
   return 'idle';
 }
 

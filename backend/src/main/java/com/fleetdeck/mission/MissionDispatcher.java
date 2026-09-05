@@ -81,12 +81,12 @@ public class MissionDispatcher {
 	}
 
 	/**
-	 * 유휴이면서 예약되지 않은 로봇 중 배터리가 가장 많은 것. 순수 함수라 단위 테스트 대상.
+	 * 가용하면서 예약되지 않은 로봇 중 배터리가 가장 많은 것. 순수 함수라 단위 테스트 대상.
 	 */
 	static Optional<RobotStateMessage> pickIdleRobot(Collection<RobotStateMessage> candidates,
 			Set<String> reservedSerials) {
 		return candidates.stream()
-				.filter(RobotStateMessage::isIdle)
+				.filter(RobotStateMessage::isAvailable)
 				.filter(r -> !reservedSerials.contains(r.serialNumber()))
 				.max(Comparator.comparingDouble(RobotStateMessage::batteryCharge));
 	}
