@@ -1,5 +1,6 @@
 import { EquipmentPanel } from './components/EquipmentPanel';
 import { FleetMap } from './components/FleetMap';
+import { HistoryChart } from './components/HistoryChart';
 import { MissionPanel } from './components/MissionPanel';
 import { RobotList } from './components/RobotList';
 import { useFleet } from './hooks/useFleet';
@@ -51,6 +52,17 @@ export function App() {
           <section className="panel" aria-labelledby="equipment-heading">
             <h2 id="equipment-heading">설비</h2>
             <EquipmentPanel equipment={equipment} />
+          </section>
+          <section className="panel" aria-labelledby="history-heading">
+            <h2 id="history-heading">최근 30분 추이</h2>
+            <HistoryChart
+              metric="fleet-driving-ratio"
+              title="플릿 가동률"
+              unit="%"
+              yMax={100}
+            />
+            <HistoryChart metric="equipment-throughput" title="소터 처리량" unit="" />
+            <HistoryChart metric="robot-battery" title="로봇 배터리" unit="%" yMax={100} />
           </section>
         </aside>
       </main>
