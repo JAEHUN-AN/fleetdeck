@@ -25,6 +25,8 @@ public class MqttConfig {
 
 	static final String ROBOT_STATE_TOPIC = "uagv/v2/+/+/state";
 	static final String EQUIPMENT_STATE_TOPIC = "fleetdeck/equipment/+/state";
+	// 이상 주입 정답 라벨. 유실되면 그 구간을 채점에 못 쓰므로 QoS 1 로 받는다.
+	static final String FAULT_TOPIC = "fleetdeck/equipment/+/fault";
 
 	@Bean
 	public MqttPahoClientFactory mqttClientFactory(FleetdeckProperties props) {
@@ -53,9 +55,11 @@ public class MqttConfig {
 	@Bean
 	public MessageProducer mqttInboundAdapter(MqttPahoClientFactory factory, FleetdeckProperties props) {
 		MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
-				props.mqtt().clientId() + "-in", factory, ROBOT_STATE_TOPIC, EQUIPMENT_STATE_TOPIC);
+				props.mqtt().clientId() + "-in", factory, ROBOT_STATE_TOPIC, EQUIPMENT_STATE_TOPIC,
+				FAULT_TOPIC);
 		adapter.setConverter(new DefaultPahoMessageConverter());
-		adapter.setQos(0);
+		// 토픽 순서대로. state 는 다음 틱에 갱신되므로 0, 주입 라벨은 한 번뿐이라 1.
+		adapter.setQos(0, 0, 1);
 		adapter.setOutputChannel(mqttInbound());
 		return adapter;
 	}

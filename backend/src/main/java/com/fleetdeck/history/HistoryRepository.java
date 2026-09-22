@@ -50,6 +50,28 @@ public class HistoryRepository {
 			ORDER BY bucket
 			""";
 
+	/**
+	 * 채널 하나의 설비별 추이. 다른 지표와 달리 조회 대상을 파라미터로 받는다 -
+	 * 채널은 설비가 정하는 것이라 쿼리를 채널마다 만들 수 없다.
+	 */
+	private static final String SENSOR_CHANNEL = """
+			SELECT time_bucket(CAST(? AS interval), ts) AS bucket,
+			       equipment_id AS series,
+			       avg(value) AS value
+			FROM equipment_sensor_log
+			WHERE ts > now() - CAST(? AS interval) AND channel = ?
+			GROUP BY bucket, series
+			ORDER BY bucket
+			""";
+
+	/** 지금 수집되고 있는 채널 목록. 대시보드가 탭을 그리는 데 쓴다. */
+	private static final String SENSOR_CHANNELS = """
+			SELECT DISTINCT channel
+			FROM equipment_sensor_log
+			WHERE ts > now() - CAST(? AS interval)
+			ORDER BY channel
+			""";
+
 	private static final RowMapper<HistoryPoint> ROW_MAPPER = HistoryRepository::mapRow;
 
 	private final JdbcTemplate jdbc;
@@ -68,6 +90,14 @@ public class HistoryRepository {
 
 	public List<HistoryPoint> fleetDrivingRatio(Duration window, Duration bucket) {
 		return query(FLEET_DRIVING_RATIO, window, bucket);
+	}
+
+	public List<HistoryPoint> sensorChannel(String channel, Duration window, Duration bucket) {
+		return jdbc.query(SENSOR_CHANNEL, ROW_MAPPER, toInterval(bucket), toInterval(window), channel);
+	}
+
+	public List<String> sensorChannels(Duration window) {
+		return jdbc.queryForList(SENSOR_CHANNELS, String.class, toInterval(window));
 	}
 
 	private List<HistoryPoint> query(String sql, Duration window, Duration bucket) {

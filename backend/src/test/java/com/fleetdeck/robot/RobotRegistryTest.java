@@ -16,7 +16,8 @@ class RobotRegistryTest {
 
 	private static RobotRegistry newRegistry() {
 		FleetdeckProperties props = new FleetdeckProperties(
-				null, null, null, new FleetdeckProperties.Robot(OFFLINE_AFTER, EVICT_AFTER));
+				null, null, null, null, null,
+				new FleetdeckProperties.Robot(OFFLINE_AFTER, EVICT_AFTER));
 		return new RobotRegistry(props);
 	}
 

@@ -69,8 +69,8 @@ WMS 주문 ──▶ PENDING ──▶ ASSIGNED ──▶ RUNNING ──▶ DONE
 
 | 폴더 | 역할 | 스택 |
 |------|------|------|
-| `simulator/` | 가상 AMR(order 수행)·소터 상태 발행 | Python 3.12, paho-mqtt, uv |
-| `backend/` | MQTT 수집 → 적재 → 중계, 미션 API·디스패처·생명주기 | Spring Boot 3.5, Spring Integration, JDBC, Flyway |
+| `simulator/` | 가상 AMR(order 수행)·소터 상태 발행, OPC UA 서버 | Python 3.12, paho-mqtt, asyncua, uv |
+| `backend/` | MQTT·OPC UA 수집 → 적재 → 중계, 미션 API·디스패처·생명주기 | Spring Boot 3.5, Spring Integration, Milo, JDBC, Flyway |
 | `frontend/` | 실시간 대시보드 (2D/3D 맵, 미션·로봇·설비 패널, 시계열 차트) | React 18, Vite, TypeScript, @stomp/stompjs, three |
 | `infra/` | Mosquitto 설정 | eclipse-mosquitto 2 |
 | `docs/` | 범위, 판단 근거, 측정 기록 | Markdown |
@@ -109,7 +109,25 @@ cd frontend && npm install && npm run dev
 | GET | `/api/missions` | 최근 미션 100건 |
 | POST | `/api/missions` | 미션 생성 (`{type, fromNode, toNode, sourceRef}`) |
 | GET | `/api/map/nodes` | 창고 노드 좌표 |
-| WS | `/ws` | STOMP. `/topic/robots`, `/topic/equipment`, `/topic/missions` 구독 |
+| GET | `/api/history/sensor?channel=` | 센서 채널 추이 (time_bucket 집계) |
+| GET | `/api/history/sensor-channels` | 수집 중인 채널 목록 |
+| GET | `/api/alarms` | 최근 FDC 경보 |
+| WS | `/ws` | STOMP. `/topic/robots`, `/topic/equipment`, `/topic/missions`, `/topic/alarms` 구독 |
+
+## 설비 연동 프로토콜
+
+설비는 MQTT 와 OPC UA 두 경로로 들어오고, 어댑터를 지나면 구분이 없어집니다 —
+같은 레지스트리·같은 하이퍼테이블·같은 WebSocket 토픽을 탑니다.
+`equipment_state_log.source` 로만 어느 쪽으로 들어왔는지 남습니다.
+
+| 설비 | 프로토콜 | 수집 |
+|------|---------|------|
+| `SORTER-nn` | MQTT `fleetdeck/equipment/{id}/state` | Spring Integration MQTT |
+| `UA-SORTER-nn` | OPC UA `opc.tcp://simulator:4840` | Milo 클라이언트 (탐색 → 구독) |
+
+NodeId 는 박지 않고 Equipment 폴더를 브라우징해 찾습니다. 구독 알림은 변수 단위로
+오므로 설비 단위로 병합해 내보냅니다(초당 12건 → **1.98건** 실측).
+자세한 것은 [docs/021-opcua.md](docs/021-opcua.md).
 
 ## MQTT 토픽
 
@@ -207,7 +225,15 @@ MQTT → 적재 → 미션 전이 → order 발행 → STOMP 브로드캐스트�
 - [x] 시계열 히스토리 API 와 차트 (time_bucket 집계)
 - [x] Three.js 3D 뷰 (2D/3D 전환, 지연 로딩)
 - [x] 통로 경유점 삽입
+- [x] OPC UA 설비 연동 (탐색·구독·폴링, 알림 병합)
+- [x] FDC 연속 센서 채널, 이상 주입 4종, 탐지기 3종 비교 채점
+- [x] 센서·경보·정답라벨 적재, 수집 경로에 탐지기 연결, `/topic/alarms` 중계
+- [x] 이상 감지 패널·센서 채널 차트, 경보 히스테리시스
 - [ ] A* 경로 계획, 교통 제어
+
+제조 도메인 확장(SPC/FDC/RMS/Oracle)은 [docs/020-manufacturing-scope.md](docs/020-manufacturing-scope.md) 참고.
+측정 기록은 [021 OPC UA](docs/021-opcua.md), [022 FDC 탐지기 비교](docs/022-fdc-detection.md),
+[023 대시보드와 경보 깜빡임](docs/023-dashboard-and-flapping.md).
 
 범위와 판단 근거는 [docs/000-scope.md](docs/000-scope.md) 참고.
 

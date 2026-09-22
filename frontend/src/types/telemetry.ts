@@ -100,3 +100,28 @@ export function robotActivity(robot: RobotState): RobotActivity {
 export function remainingNodes(robot: RobotState): number {
   return robot.nodeStates?.length ?? 0;
 }
+
+/** 탐지기 이름. backend 의 Detector.name() 과 1:1. */
+export type DetectorName = 'THRESHOLD' | 'MOVING_SIGMA' | 'EWMA';
+
+/**
+ * FDC 경보. backend 의 SensorTelemetryService.AlarmView 와 1:1.
+ *
+ * score 는 기준 대비 벗어난 정도(시그마 배수)다. 어느 탐지기가 올렸는지를 같이 보여줘야
+ * 한다 — 이동 통계가 올린 단발 경보와 EWMA 가 올린 지속 경보는 대응이 다르다.
+ */
+export interface SensorAlarm {
+  equipmentId: string;
+  channel: string;
+  detector: DetectorName;
+  value: number;
+  score: number;
+  at: string;
+}
+
+/** 탐지기별로 무엇을 잡은 것인지. 화면에 그대로 띄운다. */
+export const DETECTOR_LABEL: Record<DetectorName, string> = {
+  THRESHOLD: '한계 초과',
+  MOVING_SIGMA: '순간 이상',
+  EWMA: '추세 이탈',
+};

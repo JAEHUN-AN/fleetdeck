@@ -235,3 +235,38 @@ body {
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }
 }
+
+/* FDC 이상 감지 */
+.panel__count { font-size: 11px; color: var(--text-dim); }
+.alarms {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 210px; overflow-y: auto;
+}
+.alarm {
+  border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius);
+  padding: 6px 9px; background: var(--surface-2);
+}
+/* 심각도는 두 단계면 충분하다. 단계를 늘리면 색이 의미를 잃는다. */
+.alarm--mid { border-left-color: var(--warn); }
+.alarm--high { border-left-color: var(--alarm); }
+.alarm__top { display: flex; align-items: center; gap: 8px; }
+.alarm__equipment { font-size: 12px; font-weight: 600; }
+.alarm__detector { font-size: 10px; color: var(--text-dim); }
+.alarm__ago { margin-left: auto; font-size: 10px; color: var(--text-dim); }
+.alarm__bottom {
+  display: flex; gap: 10px; margin-top: 3px; font-size: 10px; color: var(--text-dim);
+}
+.alarm__value { color: var(--text); }
+.alarm__score { margin-left: auto; font-weight: 600; }
+.alarm--high .alarm__score { color: var(--alarm); }
+.alarm--mid .alarm__score { color: var(--warn); }
+
+/* 센서 채널 탭 */
+.chart__tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.chart__tab {
+  background: none; color: var(--text-dim); font-family: var(--font-mono); font-size: 10px;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 2px 7px; cursor: pointer;
+}
+.chart__tab:hover { color: var(--text); border-color: var(--text-dim); }
+.chart__tab--on { color: var(--bg); background: var(--accent); border-color: var(--accent); }

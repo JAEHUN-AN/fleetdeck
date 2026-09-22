@@ -48,6 +48,24 @@ public class HistoryController {
 		return repository.fleetDrivingRatio(clampWindow(window), clampBucket(window, bucket));
 	}
 
+	/**
+	 * 센서 채널 추이. 채널 이름은 설비가 정하므로 화이트리스트를 두지 않는다 -
+	 * 대신 값이 파라미터 바인딩으로 들어가 SQL 에 섞이지 않는다.
+	 */
+	@GetMapping("/sensor")
+	public List<HistoryPoint> sensor(
+			@RequestParam String channel,
+			@RequestParam(defaultValue = "PT30M") Duration window,
+			@RequestParam(defaultValue = "PT1M") Duration bucket) {
+		return repository.sensorChannel(channel, clampWindow(window), clampBucket(window, bucket));
+	}
+
+	/** 최근 구간에 실제로 들어온 채널 목록. 대시보드가 탭을 그린다. */
+	@GetMapping("/sensor-channels")
+	public List<String> sensorChannels(@RequestParam(defaultValue = "PT30M") Duration window) {
+		return repository.sensorChannels(clampWindow(window));
+	}
+
 	static Duration clampWindow(Duration window) {
 		if (window == null || window.isNegative() || window.isZero()) {
 			return Duration.ofMinutes(30);

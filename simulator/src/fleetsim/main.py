@@ -11,7 +11,9 @@ import time
 
 import paho.mqtt.client as mqtt
 
+from fleetsim import opcua as opcua_model
 from fleetsim import robot as robot_model
+from fleetsim import sensors as sensor_model
 from fleetsim import sorter as sorter_model
 from fleetsim import vda5050
 from fleetsim.config import SimConfig
@@ -76,6 +78,11 @@ def run() -> None:
         sorter_model.spawn(f"SORTER-{i + 1:02d}", x=5.0 + i * 12.0, y=cfg.map_height - 3.0)
         for i in range(cfg.sorter_count)
     ]
+    ua_sorters, ua_server = _start_opcua(cfg)
+    banks = {
+        s.equipment_id: sensor_model.spawn(s.equipment_id, cfg.fault_probability)
+        for s in sorters + ua_sorters
+    }
 
     running = {"value": True}
     signal.signal(signal.SIGINT, lambda *_: running.__setitem__("value", False))
@@ -88,13 +95,45 @@ def run() -> None:
         for serial, state in fleet.items():
             fleet[serial] = robot_model.step(state, cfg.tick_sec)
         sorters = [sorter_model.step(s, rng) for s in sorters]
-        _publish_all(client, cfg, fleet, sorters)
+        ua_sorters = [sorter_model.step(s, rng) for s in ua_sorters]
+        banks, readings, fault_events = _step_sensors(banks, rng)
+        _publish_all(client, cfg, fleet, sorters, readings)
+        _publish_faults(client, fault_events)
+        if ua_server is not None:
+            ua_server.publish(ua_sorters, readings)
         elapsed = time.monotonic() - started
         time.sleep(max(0.0, cfg.tick_sec - elapsed))
 
+    if ua_server is not None:
+        ua_server.stop()
     client.loop_stop()
     client.disconnect()
     log.info("stopped")
+
+
+def _start_opcua(
+    cfg: SimConfig,
+) -> tuple[list[sorter_model.SorterState], opcua_model.SorterOpcUaServer | None]:
+    """OPC UA 전용 소터를 세우고 서버를 띄운다.
+
+    서버가 뜨지 않아도 시뮬레이터 본체(MQTT)는 계속 돌아야 한다 — 프로토콜 하나가
+    죽었다고 나머지 관제가 멎으면 안 된다.
+    """
+    if not cfg.opcua_enabled or cfg.opcua_sorter_count <= 0:
+        return [], None
+
+    ids = opcua_model.equipment_ids(cfg.opcua_sorter_count)
+    states = [
+        sorter_model.spawn(eid, x=8.0 + i * 12.0, y=cfg.map_height - 8.0, equipment_type="TILT_TRAY_SORTER")
+        for i, eid in enumerate(ids)
+    ]
+    server = opcua_model.SorterOpcUaServer(cfg.opcua_endpoint, ids)
+    try:
+        server.start()
+    except Exception:
+        log.exception("OPC UA 서버 기동 실패 — MQTT 경로만으로 계속한다")
+        return [], None
+    return states, server
 
 
 def _spawn_fleet(cfg: SimConfig, rng: random.Random) -> dict[str, robot_model.RobotState]:
@@ -128,11 +167,45 @@ def _apply_pending_orders(fleet: dict[str, robot_model.RobotState]) -> None:
         fleet[serial] = robot_model.assign_order(current, order_id, waypoints)
 
 
+def _step_sensors(
+    banks: dict[str, sensor_model.SensorBank], rng: random.Random
+) -> tuple[dict[str, sensor_model.SensorBank], dict[str, dict[str, float]],
+           list[sensor_model.FaultEvent]]:
+    """모든 설비의 센서를 한 틱 돌린다. 주입 사건은 정답 라벨로 모아 돌려준다."""
+    next_banks: dict[str, sensor_model.SensorBank] = {}
+    readings: dict[str, dict[str, float]] = {}
+    events: list[sensor_model.FaultEvent] = []
+    for equipment_id, bank in banks.items():
+        next_banks[equipment_id], readings[equipment_id], new_events = sensor_model.step(bank, rng)
+        events.extend(new_events)
+    return next_banks, readings, events
+
+
+def _publish_faults(client: mqtt.Client, events: list[sensor_model.FaultEvent]) -> None:
+    """주입 사건은 QoS 1. 유실되면 그 구간을 채점에서 못 쓴다."""
+    for event in events:
+        client.publish(
+            f"fleetdeck/equipment/{event.equipment_id}/fault",
+            json.dumps({
+                "equipmentId": event.equipment_id,
+                "channel": event.channel,
+                "kind": event.kind.value,
+                "magnitude": round(event.magnitude, 4),
+                "phase": event.phase,
+                "timestamp": vda5050._now_iso(),
+            }),
+            qos=1,
+        )
+        log.info("fault %s %s %s/%s", event.phase, event.kind.value, event.equipment_id,
+                 event.channel)
+
+
 def _publish_all(
     client: mqtt.Client,
     cfg: SimConfig,
     fleet: dict[str, robot_model.RobotState],
     sorters: list[sorter_model.SorterState],
+    readings: dict[str, dict[str, float]],
 ) -> None:
     for r in fleet.values():
         client.publish(
@@ -141,7 +214,8 @@ def _publish_all(
             qos=0,
         )
     for s in sorters:
-        client.publish(sorter_model.topic(s.equipment_id), json.dumps(sorter_model.to_message(s)), qos=0)
+        client.publish(sorter_model.topic(s.equipment_id),
+                       json.dumps(sorter_model.to_message(s, readings.get(s.equipment_id))), qos=0)
 
 
 if __name__ == "__main__":

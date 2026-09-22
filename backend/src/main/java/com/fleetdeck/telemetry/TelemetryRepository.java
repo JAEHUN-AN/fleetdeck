@@ -1,5 +1,6 @@
 package com.fleetdeck.telemetry;
 
+import com.fleetdeck.equipment.EquipmentSource;
 import com.fleetdeck.equipment.EquipmentStateMessage;
 import com.fleetdeck.robot.RobotStateMessage;
 import java.time.OffsetDateTime;
@@ -22,8 +23,8 @@ public class TelemetryRepository {
 
 	private static final String INSERT_EQUIPMENT = """
 			INSERT INTO equipment_state_log
-			  (ts, equipment_id, equipment_type, status, throughput_per_min, alarm_code, payload)
-			VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)
+			  (ts, equipment_id, equipment_type, status, throughput_per_min, alarm_code, payload, source)
+			VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?)
 			""";
 
 	private final JdbcTemplate jdbc;
@@ -50,7 +51,7 @@ public class TelemetryRepository {
 				rawJson);
 	}
 
-	public void insertEquipmentState(EquipmentStateMessage m, String rawJson) {
+	public void insertEquipmentState(EquipmentStateMessage m, String rawJson, EquipmentSource source) {
 		jdbc.update(INSERT_EQUIPMENT,
 				parseTimestamp(m.timestamp()),
 				m.equipmentId(),
@@ -58,10 +59,12 @@ public class TelemetryRepository {
 				m.status(),
 				m.throughputPerMin(),
 				m.alarmCode(),
-				rawJson);
+				rawJson,
+				source.name());
 	}
 
-	static OffsetDateTime parseTimestamp(String iso) {
+	/** 페이로드의 ISO 시각. 없거나 깨졌으면 수집 시각으로 대체한다. */
+	public static OffsetDateTime parseTimestamp(String iso) {
 		if (iso == null || iso.isBlank()) {
 			return OffsetDateTime.now();
 		}

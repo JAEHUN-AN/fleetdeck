@@ -1,4 +1,11 @@
-import type { EquipmentState, MapNode, Mission, MissionType, RobotState } from '../types/telemetry';
+import type {
+  EquipmentState,
+  MapNode,
+  Mission,
+  MissionType,
+  RobotState,
+  SensorAlarm,
+} from '../types/telemetry';
 
 const API_BASE = '/api';
 
@@ -43,4 +50,12 @@ export async function createMission(input: CreateMissionInput): Promise<Mission>
     throw new Error(`POST /missions failed: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as Mission;
+}
+
+/**
+ * 최근 FDC 경보. 실시간은 STOMP 로 오지만, 화면을 새로 열었을 때 비어 보이면
+ * 아무 일도 없었던 것처럼 읽힌다.
+ */
+export function fetchAlarms(limit = 50): Promise<SensorAlarm[]> {
+  return getJson<SensorAlarm[]>(`/alarms?limit=${limit}`);
 }

@@ -1,5 +1,5 @@
 import { Client, type IMessage } from '@stomp/stompjs';
-import type { EquipmentState, Mission, RobotState } from '../types/telemetry';
+import type { EquipmentState, Mission, RobotState, SensorAlarm } from '../types/telemetry';
 
 const RECONNECT_DELAY_MS = 3000;
 
@@ -7,6 +7,7 @@ export interface FleetSocketHandlers {
   onRobot: (robot: RobotState) => void;
   onEquipment: (equipment: EquipmentState) => void;
   onMission: (mission: Mission) => void;
+  onAlarm: (alarm: SensorAlarm) => void;
   onStatus: (connected: boolean) => void;
   onError: (message: string) => void;
 }
@@ -39,6 +40,10 @@ export function connectFleetSocket(handlers: FleetSocketHandlers): () => void {
       client.subscribe('/topic/missions', (m) => {
         const mission = parse<Mission>(m, handlers.onError);
         if (mission) handlers.onMission(mission);
+      });
+      client.subscribe('/topic/alarms', (m) => {
+        const alarm = parse<SensorAlarm>(m, handlers.onError);
+        if (alarm) handlers.onAlarm(alarm);
       });
     },
     onWebSocketClose: () => handlers.onStatus(false),

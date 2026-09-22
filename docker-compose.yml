@@ -46,6 +46,13 @@ services:
       SIM_TICK_SEC: ${SIM_TICK_SEC:-1.0}
       SIM_MAP_WIDTH: ${SIM_MAP_WIDTH:-40}
       SIM_MAP_HEIGHT: ${SIM_MAP_HEIGHT:-25}
+      # OPC UA 서버. 광고 호스트를 서비스명으로 둬야 백엔드가 되돌아올 수 있다.
+      SIM_OPCUA_ENABLED: ${SIM_OPCUA_ENABLED:-true}
+      SIM_OPCUA_HOST: ${SIM_OPCUA_HOST:-simulator}
+      SIM_OPCUA_PORT: ${SIM_OPCUA_PORT:-4840}
+      SIM_OPCUA_SORTER_COUNT: ${SIM_OPCUA_SORTER_COUNT:-2}
+    ports:
+      - "${SIM_OPCUA_PORT:-4840}:4840"   # OPC UA (UaExpert 등으로 직접 붙어볼 때)
     depends_on:
       mosquitto:
         condition: service_healthy
@@ -56,6 +63,8 @@ services:
     container_name: fleetdeck-backend
     environment:
       FLEETDECK_MQTT_URL: tcp://mosquitto:1883
+      FLEETDECK_OPCUA_URL: ${FLEETDECK_OPCUA_URL:-opc.tcp://simulator:4840/fleetdeck/server/}
+      FLEETDECK_OPCUA_MODE: ${FLEETDECK_OPCUA_MODE:-SUBSCRIBE}
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-fleetdeck}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fleetdeck}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
@@ -67,6 +76,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      simulator:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

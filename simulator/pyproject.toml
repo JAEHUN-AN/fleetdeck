@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "VDA5050 AMR + sorter equipment telemetry simulator for fleetdeck"
 requires-python = ">=3.12"
 dependencies = [
+    "asyncua>=2.0.1",
     "paho-mqtt>=2.1.0",
 ]
 
 [project.scripts]
 fleetsim = "fleetsim.main:run"
+fleetsim-dataset = "fleetsim.dataset:run"
 
 [dependency-groups]
 dev = [

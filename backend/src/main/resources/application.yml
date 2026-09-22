@@ -23,6 +23,25 @@ fleetdeck:
     url: ${FLEETDECK_MQTT_URL:tcp://localhost:1883}
     client-id: ${FLEETDECK_MQTT_CLIENT_ID:fleetdeck-rcs}
     manufacturer: ${SIM_MANUFACTURER:fleetdeck}
+  opcua:
+    # OPC UA 설비 연동. 시뮬레이터의 UA-SORTER-nn 이 여기로 들어온다.
+    enabled: ${FLEETDECK_OPCUA_ENABLED:true}
+    endpoint-url: ${FLEETDECK_OPCUA_URL:opc.tcp://localhost:4840/fleetdeck/server/}
+    namespace-uri: ${FLEETDECK_OPCUA_NAMESPACE:urn:fleetdeck:simulator}
+    folder-name: ${FLEETDECK_OPCUA_FOLDER:Equipment}
+    # SUBSCRIBE: 서버가 변화를 통보 / POLL: 주기 읽기. 비교 측정용으로 둘 다 둔다.
+    mode: ${FLEETDECK_OPCUA_MODE:SUBSCRIBE}
+    publishing-interval: ${FLEETDECK_OPCUA_PUBLISHING:1s}
+    poll-interval: ${FLEETDECK_OPCUA_POLL:1s}
+    reconnect-delay: ${FLEETDECK_OPCUA_RECONNECT:5s}
+  fdc:
+    # 이상 감지. 채널 사양이 없으면 적재만 하고 탐지는 건너뛴다.
+    enabled: ${FLEETDECK_FDC_ENABLED:true}
+    channels:
+      # 규격한계가 아니라 "정상일 때 이 설비가 실제로 내는 값" 이다. 둘을 섞으면 전부 틀어진다.
+      MotorCurrent: { nominal: 12.0, sigma: 0.25 }
+      VibrationRms: { nominal: 2.5, sigma: 0.15 }
+      BearingTemp: { nominal: 45.0, sigma: 0.5 }
   dispatch:
     # PENDING 미션 재시도 주기와 한 번에 처리할 건수
     interval: ${FLEETDECK_DISPATCH_INTERVAL:3s}

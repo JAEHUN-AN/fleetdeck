@@ -1,9 +1,11 @@
 import { Suspense, lazy, useState } from 'react';
+import { AlarmPanel } from './components/AlarmPanel';
 import { EquipmentPanel } from './components/EquipmentPanel';
 import { FleetMap } from './components/FleetMap';
 import { HistoryChart } from './components/HistoryChart';
 import { MissionPanel } from './components/MissionPanel';
 import { RobotList } from './components/RobotList';
+import { SensorChart } from './components/SensorChart';
 import { useFleet } from './hooks/useFleet';
 
 // three.js 는 600KB 가 넘는다. 3D 를 고른 사람만 내려받게 한다.
@@ -26,7 +28,7 @@ function pushViewToUrl(view: MapView) {
 }
 
 export function App() {
-  const { robots, equipment, missions, nodes, connected, lastError } = useFleet();
+  const { robots, equipment, missions, alarms, nodes, connected, lastError } = useFleet();
   const [view, setView] = useState<MapView>(viewFromUrl);
 
   const selectView = (next: MapView) => {
@@ -34,7 +36,8 @@ export function App() {
     pushViewToUrl(next);
   };
 
-  const alarms = equipment.filter((e) => e.status === 'ALARM').length;
+  // 설비가 스스로 보고한 알람과 FDC 가 통계로 찾아낸 경보는 다른 것이다. 따로 센다.
+  const equipmentAlarms = equipment.filter((e) => e.status === 'ALARM').length;
   const offline = robots.filter((r) => !r.online).length;
   const openMissions = missions.filter((m) => m.status !== 'DONE' && m.status !== 'FAILED').length;
   const doneMissions = missions.filter((m) => m.status === 'DONE').length;
@@ -50,7 +53,12 @@ export function App() {
           <Stat label="로봇" value={robots.length} />
           <Stat label="오프라인" value={offline} tone={offline > 0 ? 'alarm' : undefined} />
           <Stat label="설비" value={equipment.length} />
-          <Stat label="알람" value={alarms} tone={alarms > 0 ? 'alarm' : undefined} />
+          <Stat
+            label="설비알람"
+            value={equipmentAlarms}
+            tone={equipmentAlarms > 0 ? 'alarm' : undefined}
+          />
+          <Stat label="이상감지" value={alarms.length} tone={alarms.length > 0 ? 'alarm' : undefined} />
           <Stat label="진행" value={openMissions} />
           <Stat label="완료" value={doneMissions} tone="ok" />
           <span className={`conn ${connected ? 'conn--on' : 'conn--off'}`}>
@@ -90,6 +98,7 @@ export function App() {
         </section>
 
         <aside className="side">
+          <AlarmPanel alarms={alarms} />
           <section className="panel" aria-labelledby="missions-heading">
             <h2 id="missions-heading">미션</h2>
             <MissionPanel missions={missions} nodes={nodes} />
@@ -104,6 +113,7 @@ export function App() {
           </section>
           <section className="panel" aria-labelledby="history-heading">
             <h2 id="history-heading">최근 30분 추이</h2>
+            <SensorChart />
             <HistoryChart metric="fleet-driving-ratio" title="플릿 가동률" unit="%" yMax={100} />
             <HistoryChart metric="equipment-throughput" title="소터 처리량" unit="" />
             <HistoryChart metric="robot-battery" title="로봇 배터리" unit="%" yMax={100} />

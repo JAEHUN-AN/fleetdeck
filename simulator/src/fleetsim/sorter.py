@@ -68,8 +68,8 @@ def topic(equipment_id: str) -> str:
     return f"fleetdeck/equipment/{equipment_id}/state"
 
 
-def to_message(state: SorterState) -> dict:
-    return {
+def to_message(state: SorterState, readings: dict[str, float] | None = None) -> dict:
+    message = {
         "equipmentId": state.equipment_id,
         "equipmentType": state.equipment_type,
         "status": state.status.value,
@@ -79,3 +79,6 @@ def to_message(state: SorterState) -> dict:
         "y": round(state.y, 2),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
     }
+    if readings:
+        message["sensors"] = dict(readings)
+    return message
